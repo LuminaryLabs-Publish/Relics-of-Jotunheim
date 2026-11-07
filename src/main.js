@@ -95,8 +95,8 @@ function frame(){
   character.rotation.y=state.heading;
  }
  if(mixer)mixer.update(dt);
- camera.position.lerp(new THREE.Vector3(state.x+4.3,state.y+3.5,state.z+8.8),Math.min(1,dt*6));
- camera.lookAt(state.x,state.y+1.35,state.z-1.3);
+ camera.position.lerp(new THREE.Vector3(state.x+2.8,state.y+2.85,state.z+6.4),Math.min(1,dt*6));
+ camera.lookAt(state.x,state.y+1.35,state.z-.7);
  if(character)status.textContent='Action: '+desired+' · Clips: '+actions.size+' · Grounded: '+state.grounded;
  pressed.clear();
  engine.tick(dt);renderer.render(scene,camera);
