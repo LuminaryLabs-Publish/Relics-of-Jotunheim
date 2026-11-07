@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createState,step,config} from './movement.js';
+const run=(s,input,n=60)=>{for(let i=0;i<n;i++)step(s,input,1/60);return s;};
+test('walk accelerates within speed limit',()=>{const s=run(createState(),{forward:true});assert.ok(s.z<0);assert.ok(Math.hypot(s.vx,s.vz)<=config.walk+1e-8);});
+test('sprint exceeds walk',()=>{assert.ok(-run(createState(),{forward:true,sprint:true}).z>-run(createState(),{forward:true}).z);});
+test('stop brakes to idle',()=>{const s=run(createState(),{forward:true});run(s,{});assert.equal(s.animation,'idle');});
+test('jump lands',()=>{const s=createState();step(s,{jumpPressed:true},1/60);assert.equal(s.grounded,false);run(s,{},120);assert.equal(s.grounded,true);assert.equal(s.y,0);});
+test('dodge cooldown prevents retrigger',()=>{const s=createState();step(s,{forward:true,dodgePressed:true},1/60);const c=s.dodgeCooldown;step(s,{dodgePressed:true},1/60);assert.ok(s.dodgeCooldown<c);});
+test('camera-relative forward rotates',()=>{assert.ok(run(createState(),{forward:true,cameraYaw:Math.PI/2},30).x<-.1);});
+test('large delta clamped',()=>{const s=createState();step(s,{forward:true},100);assert.ok(-s.z<1);});
