@@ -11,9 +11,9 @@ const page=await context.newPage();
 const errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 await page.goto('http://127.0.0.1:4173/',{waitUntil:'domcontentloaded',timeout:30000});
-await page.waitForFunction(()=>document.querySelector('#roj-status')?.textContent?.includes('16 animations loaded'),{timeout:45000});
+await page.waitForFunction(()=>/Clips: 16|16 animations loaded/.test(document.querySelector('#roj-status')?.textContent||''),{timeout:45000});
 const result=await page.locator('#roj-status').textContent();
-assert.match(result,/16 animations loaded/);
+assert.match(result,/Clips: 16|16 animations loaded/);
 await page.screenshot({path:dir+'/first-frame.png'});
 const timeline=[
  ['w',5000],['Shift+w',5000],['a',5000],['d',5000],['s',5000],
