@@ -15,5 +15,14 @@ test('project pins NexusEngine commit', () => {
 test('runtime composes real NexusEngine createEngine', () => {
   const source = readFileSync(new URL('../src/engine.js', import.meta.url), 'utf8');
   assert.match(source, /import \{ createEngine \} from 'nexusengine'/);
-  assert.match(source, /return createEngine\(\)/);
+  assert.match(source, /createActorDomain\(\)/);
+  assert.match(source, /engine\.n\.player\.register/);
+});
+
+test('NexusEngine owns creature, character and player possession', async () => {
+  const { createGameEngine } = await import('../src/engine.js');
+  const engine = createGameEngine();
+  assert.equal(engine.n.creature.get('roj-fighter-creature').id, 'roj-fighter-creature');
+  assert.equal(engine.n.character.get('roj-fighter').creatureId, 'roj-fighter-creature');
+  assert.equal(engine.n.player.getControlledCharacter('local-player').character.id, 'roj-fighter');
 });
