@@ -1,4 +1,4 @@
-name: ROJ-0003 native authoring proof
+name: ROJ-0004 articulated fighter proof
 on:
   push:
     branches: [main]
@@ -41,33 +41,32 @@ jobs:
           node -p "require('./node_modules/nexusengine/package.json').version"
       - name: Run real Authoring mesh, rig, skin, walk and GLB reimport
         run: |
-          node scripts/author-fighter-walk.mjs
-          node scripts/author-fighter-walk.mjs --all
+          node scripts/author-fighter-walk.mjs --roj4
       - name: Upload native GLB and proof
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: roj-0003-native-walk
-          path: artifacts/roj-0003/
+          name: roj-0004-sixteen-clip-native
+          path: artifacts/roj-0004/
           retention-days: 14
 
       - name: Commit validated prototype GLB and authoring receipts
         if: success()
         run: |
-          mkdir -p assets/glb assets/source/fighter evidence/roj-0003
-          cp artifacts/roj-0003/fighter-all-clips.glb assets/glb/fighter-rigged-prototype.glb
-          cp artifacts/roj-0003/canonical-all-clips-source.json assets/source/fighter/canonical-source.json
-          cp artifacts/roj-0003/native-all-clips-receipt.json evidence/roj-0003/native-authoring-receipt.json
+          mkdir -p assets/glb assets/source/fighter evidence/roj-0004
+          cp artifacts/roj-0004/fighter-roj4-sixteen-clips.glb assets/glb/fighter-rigged-v2.glb
+          cp artifacts/roj-0004/canonical-roj4-sixteen-clips-source.json assets/source/fighter/canonical-v2-source.json
+          cp artifacts/roj-0004/native-roj4-sixteen-clips-receipt.json evidence/roj-0004/native-authoring-receipt.json
           git fetch origin main
           if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
             echo "::error::main moved during native authoring; rejecting stale publication"
             exit 1
           fi
-          git add assets/glb/fighter-rigged-prototype.glb assets/source/fighter/canonical-source.json evidence/roj-0003/native-authoring-receipt.json
+          git add assets/glb/fighter-rigged-v2.glb assets/source/fighter/canonical-v2-source.json evidence/roj-0004/native-authoring-receipt.json
           if git diff --cached --quiet; then
             echo "Existing validated artifacts match"
             exit 0
           fi
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit -m 'assets(ROJ-0003): publish native NexusEngine rigged six-clip fighter prototype'
+            commit -m 'assets(ROJ-0004): publish validated articulated sixteen-clip fighter'
           git push origin HEAD:main
