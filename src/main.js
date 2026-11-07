@@ -72,6 +72,8 @@ function frame(){
  const speedLimit=crouch?{...config,walk:1.65,run:1.65}:config;
  const wasAir=!state.grounded,previousVy=state.vy;
  step(state,input,dt,speedLimit);
+ const radius=Math.hypot(state.x,state.z);
+ if(radius>17.5){const k=17.5/radius;state.x*=k;state.z*=k;state.vx*=.3;state.vz*=.3;}
  if(wasAir&&state.grounded&&previousVy<-6)actionUntil=Math.max(actionUntil,now+.34);
  let desired='idle';
  if(pressed.has('f')){desired='light_attack';actionUntil=now+.48;}
