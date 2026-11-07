@@ -1,0 +1,308 @@
+{
+  "schema": "roj-fighter-asset/4",
+  "engineRevision": "c674a53e054640f5acc035180a2f3fe1d7d4fe03",
+  "meshVertices": 536,
+  "meshFaces": 482,
+  "bones": 14,
+  "articulation": {
+    "kneeAndElbowRingCount": 10,
+    "ringSides": 12,
+    "weightBlendSpan": 0.18
+  },
+  "clips": [
+    "walk",
+    "idle",
+    "run",
+    "jump",
+    "land",
+    "dodge",
+    "crouch_idle",
+    "crouch_walk",
+    "strafe_left",
+    "strafe_right",
+    "backward_walk",
+    "sprint",
+    "fall",
+    "heavy_landing",
+    "block",
+    "light_attack"
+  ],
+  "clipChecks": [
+    {
+      "clip": "walk",
+      "peakDeformationMeters": 0.4687618033115305,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "idle",
+      "peakDeformationMeters": 0.021332161865839878,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "run",
+      "peakDeformationMeters": 0.7563646890774364,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "jump",
+      "peakDeformationMeters": 0.6298652915020116,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "land",
+      "peakDeformationMeters": 0.38025595848352506,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "dodge",
+      "peakDeformationMeters": 0.6219641796859167,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "crouch_idle",
+      "peakDeformationMeters": 0.9720219762093665,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "crouch_walk",
+      "peakDeformationMeters": 1.020608284836352,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "strafe_left",
+      "peakDeformationMeters": 0.30239945063296914,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "strafe_right",
+      "peakDeformationMeters": 0.30239945063296914,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "backward_walk",
+      "peakDeformationMeters": 0.3968844855310665,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "sprint",
+      "peakDeformationMeters": 0.8978739744731004,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "fall",
+      "peakDeformationMeters": 0.4369803645474179,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "heavy_landing",
+      "peakDeformationMeters": 0.9583080288474185,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "block",
+      "peakDeformationMeters": 0.5962070216766173,
+      "endToStartMeters": 0
+    },
+    {
+      "clip": "light_attack",
+      "peakDeformationMeters": 0.5909689106857612,
+      "endToStartMeters": 0
+    }
+  ],
+  "harnessEvidence": [
+    {
+      "kind": "design",
+      "stages": [
+        "discover",
+        "interpret",
+        "plan",
+        "author",
+        "evaluate",
+        "revise"
+      ],
+      "discovered": [
+        "assembly.set",
+        "mesh.create"
+      ],
+      "planSchema": "nexusengine.authoring.design/1.plan",
+      "status": "discovery-and-preflight-only",
+      "sourceRevision": {
+        "epoch": 1,
+        "clock": 0
+      }
+    },
+    {
+      "kind": "art",
+      "stages": [
+        "discover",
+        "approach",
+        "produce",
+        "inspect",
+        "evaluate",
+        "refine"
+      ],
+      "discovered": [
+        "animation.set",
+        "material.set",
+        "mesh.create",
+        "rig.set",
+        "skin.bind",
+        "skin.weights"
+      ],
+      "planSchema": "nexusengine.authoring.art/1.plan",
+      "status": "discovery-and-preflight-only",
+      "sourceRevision": {
+        "epoch": 1,
+        "clock": 0
+      }
+    },
+    {
+      "kind": "interaction",
+      "stages": [
+        "discover",
+        "define",
+        "compose",
+        "simulate",
+        "evaluate",
+        "refine"
+      ],
+      "discovered": [
+        "sequence.set"
+      ],
+      "planSchema": "nexusengine.authoring.interaction/1.plan",
+      "status": "discovery-and-preflight-only",
+      "sourceRevision": {
+        "epoch": 1,
+        "clock": 0
+      }
+    },
+    {
+      "kind": "craft",
+      "stages": [
+        "discover",
+        "select",
+        "coordinate",
+        "evaluate",
+        "direct",
+        "maintain"
+      ],
+      "discovered": [],
+      "planSchema": "nexusengine.authoring.craft/1.plan",
+      "status": "discovery-and-preflight-only",
+      "sourceRevision": {
+        "epoch": 1,
+        "clock": 0
+      }
+    }
+  ],
+  "peakDeformationMeters": 0.4687618033115305,
+  "loopDriftMeters": 0,
+  "glbBytes": 334012,
+  "glbHash": "sha256:2310b7c1f62de29af0461ec4d883a4b2a3f59e2bb2d25dcef33a61d943ab83ec",
+  "validation": {
+    "errors": 0,
+    "issues": [
+      {
+        "code": "IMPORTED_NORMALS_REEVALUATED",
+        "details": {
+          "meshId": "mesh2"
+        },
+        "message": "Imported source uses canonical Authoring normal generation.",
+        "severity": "warning"
+      }
+    ],
+    "meshes": 1,
+    "proofKind": "native-parse-not-external-application",
+    "status": "valid",
+    "triangles": 1028,
+    "validator": "Nexus native GLB decoder",
+    "warnings": 1
+  },
+  "reimportAssemblyId": "roj03:scene",
+  "source": {
+    "byteLength": 334012,
+    "format": "glb",
+    "outputHash": "sha256:2310b7c1f62de29af0461ec4d883a4b2a3f59e2bb2d25dcef33a61d943ab83ec",
+    "profile": "gltf2-pbr-skin-morph/2",
+    "provider": "authoring-glb-export/2",
+    "requestId": "roj-0004-full-glb",
+    "schema": "nexusengine.authoring-export-receipt/2",
+    "source": [
+      {
+        "hash": "sha256:427ce914ac8e4b027ec251c2ab1999aea6f798a5738db670048862e250687349",
+        "id": "cloth",
+        "kind": "material",
+        "revision": 6
+      },
+      {
+        "hash": "sha256:2075acfc3cb185abb453cd6307bdfb372961de8ce10c1f06edaaf63e7655b0f1",
+        "id": "fighter-animation",
+        "kind": "animation",
+        "revision": 5
+      },
+      {
+        "hash": "sha256:2f4817b3eb787c8bd70a83e29972d8ec0632218488bf9ed76a636d99beb984c0",
+        "id": "fighter-mesh",
+        "kind": "mesh",
+        "revision": 1
+      },
+      {
+        "hash": "sha256:be4b0fd9cd14d2654a4223d0ec378c5a955a69e0f53529fbd4a0a27d487c3508",
+        "id": "fighter-rig",
+        "kind": "rig",
+        "revision": 2
+      },
+      {
+        "hash": "sha256:b0e340a89c0fd74321bc688ce72b4bddc8a578c7e45c68b22a5b5cf518cbfc80",
+        "id": "fighter-scene",
+        "kind": "assembly",
+        "revision": 10
+      },
+      {
+        "hash": "sha256:e168fca48e9ad49c83bbc9169cd94c0d58e253be490cb4fcf2b3c19ef1b06433",
+        "id": "fighter-skin",
+        "kind": "skin",
+        "revision": 4
+      },
+      {
+        "hash": "sha256:7f50c7118fdec291d38e29bad31fa87c02f5ede548dbe2668ddc1d73e7c877c0",
+        "id": "leather",
+        "kind": "material",
+        "revision": 7
+      },
+      {
+        "hash": "sha256:d4753a95f5dce572d876ed01a2f515cb2dbf44a400da1a5d2296d20ed92f5a0e",
+        "id": "metal",
+        "kind": "material",
+        "revision": 9
+      },
+      {
+        "hash": "sha256:ce431fa053a75c3c107f1c3de7be4c1764d6615379ba287db723626a7c3f29a2",
+        "id": "skin",
+        "kind": "material",
+        "revision": 8
+      }
+    ],
+    "sourcePacket": "sha256:f514ce6a8022fd1d0895efb276c1f31b653e19f2330212a9f840c7bc6e8f1c11",
+    "validation": {
+      "errors": 0,
+      "issues": [
+        {
+          "code": "IMPORTED_NORMALS_REEVALUATED",
+          "details": {
+            "meshId": "mesh2"
+          },
+          "message": "Imported source uses canonical Authoring normal generation.",
+          "severity": "warning"
+        }
+      ],
+      "meshes": 1,
+      "proofKind": "native-parse-not-external-application",
+      "status": "valid",
+      "triangles": 1028,
+      "validator": "Nexus native GLB decoder",
+      "warnings": 1
+    },
+    "warnings": []
+  }
+}
