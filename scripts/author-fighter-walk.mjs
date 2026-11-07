@@ -5,7 +5,8 @@ import { createAuthoringDomain, createAuthoringDesignKit, createAuthoringArtKit,
 
 // ROJ-0003: real NexusEngine n:authoring project, rig, skin, animation, GLB export.
 // A bounded WALK-only proof. Expand to six clips only after native export/reimport passes.
-const full=process.argv.includes('--all');
+const roj4=process.argv.includes('--roj4');
+const full=roj4||process.argv.includes('--all');
 const engine=createEngine({kits:[
  ...createAuthoringDomain(),createAuthoringDesignKit(),createAuthoringArtKit(),
  createAuthoringInteractionKit(),createAuthoringCraftKit()
@@ -91,12 +92,12 @@ function box(cx,cy,cz,w,h,d,bone,material){
 const sub=(a,b)=>a.map((v,i)=>v-b[i]),add=(a,b)=>a.map((v,i)=>v+b[i]),scale=(v,s)=>v.map(x=>x*s);
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const unit=v=>scale(v,1/Math.hypot(...v));
-function limb(a,b,r0,r1,boneA,boneB,material){
+function limb(a,b,r0,r1,boneA,boneB,material,jointFraction=.5){
  const direction=unit(sub(b,a)),u=unit(cross(direction,[0,0,1])),v=cross(direction,u);
- const steps=[0,.24,.47,.53,.76,1],sides=8,rings=[];
+ const steps=[0,.18,.35,jointFraction-.09,jointFraction-.045,jointFraction,jointFraction+.045,jointFraction+.09,.82,1].sort((a,b)=>a-b),sides=12,rings=[];
  for(const f of steps){
    const center=add(a,scale(sub(b,a),f));
-   const first=f<.44?1:f>.56?0:(.56-f)/.12;
+   const first=f<jointFraction-.09?1:f>jointFraction+.09?0:(jointFraction+.09-f)/.18;
    const weights=first>=1-1e-8?[{boneId:boneA,weight:1}]
      :first<=1e-8?[{boneId:boneB,weight:1}]
      :[{boneId:boneA,weight:first},{boneId:boneB,weight:1-first}];
@@ -118,8 +119,8 @@ box(0,2.07,0,.38,.35,.33,'head',2);
 box(0,2.24,0,.36,.09,.34,'head',3);
 for(const sign of [-1,1]){
  const side=sign<0?'l':'r';
- limb([sign*.31,1.78,0],[sign*.86,1.34,0],.115,.08,side+'_upper_arm',side+'_forearm',1);
- limb([sign*.18,.87,0],[sign*.18,.06,0],.148,.105,side+'_thigh',side+'_shin',1);
+ limb([sign*.375,1.75,0],[sign*.375,1.015,0],.115,.08,side+'_upper_arm',side+'_forearm',1,.51);
+ limb([sign*.1875,.875,0],[sign*.1875,0,0],.148,.105,side+'_thigh',side+'_shin',1,.5714285714285714);
  box(sign*.18,.075,.11,.27,.14,.39,side+'_shin',3);
 }
 const mesh={vertices,faces,attributes:[{id:'material',domain:'face',arity:1,values:materialFaces}]};
@@ -177,6 +178,74 @@ if(full){
  clips.push(idle,run,jump,land,dodge);
 }
 
+
+if(roj4){
+ const crouchPose=[
+  ['l_thigh',[0,.45,.65,.45,0]],['r_thigh',[0,.45,.65,.45,0]],
+  ['l_shin',[0,.55,.9,.55,0]],['r_shin',[0,.55,.9,.55,0]],
+  ['chest',[0,-.09,-.14,-.09,0]]
+ ];
+ const crouchIdle=clipRot('Crouch Idle',1.4,crouchPose);
+ crouchIdle.id='crouch_idle';
+ crouchIdle.tracks.push(yTrack('Crouch Idle',1.4,'pelvis',[0,-.15,-.2,-.15,0]));
+ const crouchWalk=clipRot('Crouch Walk',.9,[
+  ['l_thigh',[0,.42,.7,.35,0]],['r_thigh',[0,.35,.7,.42,0]],
+  ['l_shin',[0,.55,.95,.65,0]],['r_shin',[0,.65,.95,.55,0]],
+  ['l_upper_arm',[0,-.16,0,.16,0]],['r_upper_arm',[0,.16,0,-.16,0]]
+ ]);
+ crouchWalk.id='crouch_walk';
+ crouchWalk.tracks.push(yTrack('Crouch Walk',.9,'pelvis',[0,-.13,-.18,-.13,0]));
+ const strafeLeft=clipRot('Strafe Left',.75,[
+  ['l_thigh',[0,.32,0,-.32,0],'z'],['r_thigh',[0,-.32,0,.32,0],'z'],
+  ['l_shin',[0,.15,.3,.1,0]],['r_shin',[0,.1,.3,.15,0]],
+  ['chest',[0,.07,0,-.07,0],'z']
+ ]);strafeLeft.id='strafe_left';
+ const strafeRight=clipRot('Strafe Right',.75,[
+  ['l_thigh',[0,-.32,0,.32,0],'z'],['r_thigh',[0,.32,0,-.32,0],'z'],
+  ['l_shin',[0,.1,.3,.15,0]],['r_shin',[0,.15,.3,.1,0]],
+  ['chest',[0,-.07,0,.07,0],'z']
+ ]);strafeRight.id='strafe_right';
+ const backward=clipRot('Backward Walk',.88,[
+  ['l_thigh',[0,-.36,0,.36,0]],['r_thigh',[0,.36,0,-.36,0]],
+  ['l_shin',[0,.1,.32,.14,0]],['r_shin',[0,.14,.32,.1,0]],
+  ['l_upper_arm',[0,.23,0,-.23,0]],['r_upper_arm',[0,-.23,0,.23,0]]
+ ]);backward.id='backward_walk';
+ const sprint=clipRot('Sprint',.48,[
+  ['l_thigh',[0,.84,0,-.84,0]],['r_thigh',[0,-.84,0,.84,0]],
+  ['l_shin',[0,.3,.9,.2,0]],['r_shin',[0,.2,.9,.3,0]],
+  ['l_upper_arm',[0,-.72,0,.72,0]],['r_upper_arm',[0,.72,0,-.72,0]],
+  ['l_forearm',[0,.45,.7,.3,0]],['r_forearm',[0,.3,.7,.45,0]]
+ ]);sprint.tracks.push(yTrack('Sprint',.48,'pelvis',[0,.04,0,-.03,0]));
+ const fall=clipRot('Fall',.7,[
+  ['l_thigh',[0,.18,.32,.2,0]],['r_thigh',[0,.18,.32,.2,0]],
+  ['l_shin',[0,.15,.26,.15,0]],['r_shin',[0,.15,.26,.15,0]],
+  ['l_upper_arm',[0,-.45,-.6,-.3,0]],['r_upper_arm',[0,-.45,-.6,-.3,0]]
+ ]);
+ const heavy=clipRot('Heavy Landing',.5,[
+  ['l_thigh',[0,.42,.65,.28,0]],['r_thigh',[0,.42,.65,.28,0]],
+  ['l_shin',[0,.5,.85,.35,0]],['r_shin',[0,.5,.85,.35,0]],
+  ['chest',[0,-.2,-.3,-.1,0]]
+ ]);heavy.id='heavy_landing';heavy.tracks.push(yTrack('Heavy Landing',.5,'pelvis',[0,-.12,-.22,-.08,0]));
+ const block=clipRot('Block',.7,[
+  ['l_upper_arm',[0,-.65,-1.15,-.8,0]],['r_upper_arm',[0,-.65,-1.15,-.8,0]],
+  ['l_forearm',[0,.35,.85,.55,0]],['r_forearm',[0,.35,.85,.55,0]],
+  ['chest',[0,-.06,-.12,-.06,0]]
+ ]);
+ const attack=clipRot('Light Attack',.62,[
+  ['r_upper_arm',[0,-.55,-1.1,.65,0]],
+  ['r_forearm',[0,.65,.9,.15,0]],
+  ['chest',[0,-.2,.35,.12,0],'z'],
+  ['l_upper_arm',[0,.2,.35,.12,0]],
+  ['l_thigh',[0,.18,.3,.12,0]]
+ ]);attack.id='light_attack';
+ clips.push(crouchIdle,crouchWalk,strafeLeft,strafeRight,backward,sprint,fall,heavy,block,attack);
+ assert.equal(clips.length,16,'ROJ-0004 must retain six and add ten');
+ const names=new Set(clips.map(c=>c.id));assert.equal(names.size,16);
+ for(const clip of clips){
+  for(const track of clip.tracks)assert.ok(rig.bones.some(b=>b.id===track.target),'missing bone '+track.target);
+ }
+}
+
 command('animation.set',{id:'fighter-animation',content:{rigId:'fighter-rig',shapeId:null,clips,poses:[],arrangements:[]}});
 const materials=[['cloth',[.18,.31,.42,1]],['leather',[.41,.29,.23,1]],['skin',[.78,.61,.43,1]],['metal',[.49,.54,.58,1]]];
 for(const [id,baseColor] of materials)command('material.set',{id,content:{baseColor,roughness:.82,metallic:id==='metal'?.5:0}});
@@ -204,7 +273,7 @@ const clipChecks=clips.map(clip=>{
  assert.ok(drift<1e-6,clip.id+' should return to rest for clean transitions');
  return {clip:clip.id,peakDeformationMeters:peak,endToStartMeters:drift};
 });
-const artifact=await engine.n.authoringExport.export({requestId:full?'roj-0003-full-glb':'roj-0003-walk-glb',assemblyId:'fighter-scene',format:'glb'});
+const artifact=await engine.n.authoringExport.export({requestId:roj4?'roj-0004-full-glb':full?'roj-0003-full-glb':'roj-0003-walk-glb',assemblyId:'fighter-scene',format:'glb'});
 assert.equal(artifact.validation.errors,0,JSON.stringify(artifact.validation));
 assert.ok(artifact.bytes.length>1000);
 const view=new DataView(artifact.bytes.buffer,artifact.bytes.byteOffset,artifact.bytes.byteLength);
@@ -216,14 +285,14 @@ assert.ok(gltf.animations?.some(a=>a.name.includes('Walk')),'Native export must 
 assert.ok(gltf.meshes?.length>=1,'Native export must contain mesh');
 const roundtrip=createEngine({kits:createAuthoringDomain()});
 const loaded=await roundtrip.n.authoringImport.import({
- requestId:'roj-0003-reimport',prefix:'roj03',format:'glb',bytes:artifact.bytes,resources:artifact.resources
+ requestId:roj4?'roj-0004-reimport':'roj-0003-reimport',prefix:'roj03',format:'glb',bytes:artifact.bytes,resources:artifact.resources
 });
 assert.ok(loaded.assemblyId,'Native import should create assembly');
 assert.equal(roundtrip.n.authoringValidation.project().errors,0,'Reimport project validation');
-const output='artifacts/roj-0003';
-const suffix=full?'all-clips':'walk-proof';
+const output=roj4?'artifacts/roj-0004':'artifacts/roj-0003';
+const suffix=roj4?'roj4-sixteen-clips':full?'all-clips':'walk-proof';
 await mkdir(output,{recursive:true});
 await writeFile(output+'/fighter-'+suffix+'.glb',artifact.bytes);
-await writeFile(output+'/native-'+suffix+'-receipt.json',JSON.stringify({schema:'roj-fighter-asset/2',engineRevision:'c674a53e054640f5acc035180a2f3fe1d7d4fe03',meshVertices:vertices.length,meshFaces:faces.length,bones:bones.length,clips:clips.map(c=>c.id),clipChecks,harnessEvidence,peakDeformationMeters:peak,loopDriftMeters:loopDrift,glbBytes:artifact.bytes.length,glbHash:artifact.hash,validation:artifact.validation,reimportAssemblyId:loaded.assemblyId,source:artifact.receipt},null,2));
+await writeFile(output+'/native-'+suffix+'-receipt.json',JSON.stringify({schema:roj4?'roj-fighter-asset/4':'roj-fighter-asset/2',engineRevision:'c674a53e054640f5acc035180a2f3fe1d7d4fe03',meshVertices:vertices.length,meshFaces:faces.length,bones:bones.length,articulation:roj4?{kneeAndElbowRingCount:10,ringSides:12,weightBlendSpan:.18}:null,clips:clips.map(c=>c.id),clipChecks,harnessEvidence,peakDeformationMeters:peak,loopDriftMeters:loopDrift,glbBytes:artifact.bytes.length,glbHash:artifact.hash,validation:artifact.validation,reimportAssemblyId:loaded.assemblyId,source:artifact.receipt},null,2));
 await writeFile(output+'/canonical-'+suffix+'-source.json',JSON.stringify({mesh,rig,skin:project.getDocument('fighter-skin').content,animation:project.getDocument('fighter-animation').content,assembly:project.getDocument('fighter-scene').content},null,2));
 console.log(JSON.stringify({status:'PASS',engine:'NexusEngine Authoring',meshVertices:vertices.length,bones:bones.length,animationClips:clips.map(x=>x.name),clipChecks,peakDeformationMeters:peak,loopDriftMeters:loopDrift,GLBBytes:artifact.bytes.length,reimportAssemblyId:loaded.assemblyId},null,2));
