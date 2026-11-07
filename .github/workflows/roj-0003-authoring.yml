@@ -7,7 +7,7 @@ on:
       - '.github/workflows/roj-0003-authoring.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   author-walk:
     runs-on: ubuntu-latest
@@ -50,3 +50,24 @@ jobs:
           name: roj-0003-native-walk
           path: artifacts/roj-0003/
           retention-days: 14
+
+      - name: Commit validated prototype GLB and authoring receipts
+        if: success()
+        run: |
+          mkdir -p assets/glb assets/source/fighter evidence/roj-0003
+          cp artifacts/roj-0003/fighter-all-clips.glb assets/glb/fighter-rigged-prototype.glb
+          cp artifacts/roj-0003/canonical-all-clips-source.json assets/source/fighter/canonical-source.json
+          cp artifacts/roj-0003/native-all-clips-receipt.json evidence/roj-0003/native-authoring-receipt.json
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::main moved during native authoring; rejecting stale publication"
+            exit 1
+          fi
+          git add assets/glb/fighter-rigged-prototype.glb assets/source/fighter/canonical-source.json evidence/roj-0003/native-authoring-receipt.json
+          if git diff --cached --quiet; then
+            echo "Existing validated artifacts match"
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m 'assets(ROJ-0003): publish native NexusEngine rigged six-clip fighter prototype'
+          git push origin HEAD:main
