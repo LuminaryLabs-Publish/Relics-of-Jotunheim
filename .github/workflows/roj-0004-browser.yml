@@ -38,6 +38,7 @@ jobs:
           node-version: '22'
       - name: Install browser and build dependencies
         run: |
+          npm pkg delete dependencies.nexusengine
           npm install --no-audit --no-fund --no-save playwright@1.58.2
           rm -rf node_modules/nexusengine
           ln -s ../.engine-source node_modules/nexusengine
