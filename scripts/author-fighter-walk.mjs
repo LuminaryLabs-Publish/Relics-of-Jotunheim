@@ -273,6 +273,24 @@ const clipChecks=clips.map(clip=>{
  assert.ok(drift<1e-6,clip.id+' should return to rest for clean transitions');
  return {clip:clip.id,peakDeformationMeters:peak,endToStartMeters:drift};
 });
+const jointChecks=[];
+if(roj4){
+ const restVertices=engine.n.authoringSkin.evaluate('fighter-skin',{}).vertices;
+ const byId=Object.fromEntries(restVertices.map(v=>[v.id,v.position]));
+ for(const joint of ['l_forearm','r_forearm','l_shin','r_shin']){
+  for(const degrees of [0,45,90,120]){
+   const pose={[joint]:{...rest[joint],rotation:qmul(rest[joint].rotation,qx(degrees*Math.PI/180))}};
+   const vertices=engine.n.authoringSkin.evaluate('fighter-skin',pose).vertices;
+   assert.equal(vertices.length,restVertices.length,'Joint test vertex count changed');
+   assert.ok(vertices.every(v=>v.position.every(Number.isFinite)),'Nonfinite skin at '+joint+' '+degrees);
+   const moved=Math.max(...vertices.map(v=>Math.hypot(...sub(v.position,byId[v.id]))));
+   if(degrees>0)assert.ok(moved>.015,'Joint does not articulate '+joint+' '+degrees);
+   jointChecks.push({joint,degrees,maxVertexDisplacementMeters:moved,finite:true});
+  }
+ }
+ assert.equal(jointChecks.length,16);
+}
+
 const artifact=await engine.n.authoringExport.export({requestId:roj4?'roj-0004-full-glb':full?'roj-0003-full-glb':'roj-0003-walk-glb',assemblyId:'fighter-scene',format:'glb'});
 assert.equal(artifact.validation.errors,0,JSON.stringify(artifact.validation));
 assert.ok(artifact.bytes.length>1000);
@@ -293,6 +311,6 @@ const output=roj4?'artifacts/roj-0004':'artifacts/roj-0003';
 const suffix=roj4?'roj4-sixteen-clips':full?'all-clips':'walk-proof';
 await mkdir(output,{recursive:true});
 await writeFile(output+'/fighter-'+suffix+'.glb',artifact.bytes);
-await writeFile(output+'/native-'+suffix+'-receipt.json',JSON.stringify({schema:roj4?'roj-fighter-asset/4':'roj-fighter-asset/2',engineRevision:'c674a53e054640f5acc035180a2f3fe1d7d4fe03',meshVertices:vertices.length,meshFaces:faces.length,bones:bones.length,articulation:roj4?{kneeAndElbowRingCount:10,ringSides:12,weightBlendSpan:.18}:null,clips:clips.map(c=>c.id),clipChecks,harnessEvidence,peakDeformationMeters:peak,loopDriftMeters:loopDrift,glbBytes:artifact.bytes.length,glbHash:artifact.hash,validation:artifact.validation,reimportAssemblyId:loaded.assemblyId,source:artifact.receipt},null,2));
+await writeFile(output+'/native-'+suffix+'-receipt.json',JSON.stringify({schema:roj4?'roj-fighter-asset/4':'roj-fighter-asset/2',engineRevision:'c674a53e054640f5acc035180a2f3fe1d7d4fe03',meshVertices:vertices.length,meshFaces:faces.length,bones:bones.length,articulation:roj4?{kneeAndElbowRingCount:10,ringSides:12,weightBlendSpan:.18}:null,clips:clips.map(c=>c.id),clipChecks,jointChecks,harnessEvidence,peakDeformationMeters:peak,loopDriftMeters:loopDrift,glbBytes:artifact.bytes.length,glbHash:artifact.hash,validation:artifact.validation,reimportAssemblyId:loaded.assemblyId,source:artifact.receipt},null,2));
 await writeFile(output+'/canonical-'+suffix+'-source.json',JSON.stringify({mesh,rig,skin:project.getDocument('fighter-skin').content,animation:project.getDocument('fighter-animation').content,assembly:project.getDocument('fighter-scene').content},null,2));
 console.log(JSON.stringify({status:'PASS',engine:'NexusEngine Authoring',meshVertices:vertices.length,bones:bones.length,animationClips:clips.map(x=>x.name),clipChecks,peakDeformationMeters:peak,loopDriftMeters:loopDrift,GLBBytes:artifact.bytes.length,reimportAssemblyId:loaded.assemblyId},null,2));
