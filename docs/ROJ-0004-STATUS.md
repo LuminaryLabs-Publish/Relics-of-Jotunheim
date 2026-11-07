@@ -34,3 +34,12 @@ One believable, fully animated third-person fighter whose knees/elbows deform na
 - Authoring CI: `.github/workflows/roj-0003-authoring.yml` (now ROJ-0004 asset proof).
 - Browser CI: `.github/workflows/roj-0004-browser.yml`.
 - Source pin: `LuminaryLabs-Dev/NexusEngine@c674a53e054640f5acc035180a2f3fe1d7d4fe03`.
+
+## Final browser recording verification (2026-11-07)
+
+- Successful pinned browser run: https://github.com/LuminaryLabs-Publish/Relics-of-Jotunheim/actions/runs/42342441766
+- Validated game source commit: `9c1f0e3d95a7260c6190c4a13f315c5d9036bae6`.
+- Node regression suite and Vite build passed before recording; the browser loaded all 16 clips and completed the 60-second automated input sequence without page errors.
+- Source WebM, first/last screenshots and H.264 MP4 preserved in the workflow artifact `roj-0004-browser-evidence` (artifact ID `13562456613`).
+- Downloaded MP4 independently probed: 960 × 540, H.264, **60.000 seconds**.
+- Actual screenshot review shows the fighter stays in the arena after the boundary correction, and the camera frames the character more closely. The current mesh remains a blocky prototype; the images do not establish natural elbow/knee deformation, reliable foot planting or completed combat. This is genuine gameplay-preview evidence, **not** final ROJ-0004 acceptance.
