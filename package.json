@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "nexusengine": "github:LuminaryLabs-Dev/NexusEngine#c674a53e054640f5acc035180a2f3fe1d7d4fe03",
-    "three": "0.170.0"
+    "three": "0.186.1"
   },
   "devDependencies": {
     "vite": "6.0.5"
