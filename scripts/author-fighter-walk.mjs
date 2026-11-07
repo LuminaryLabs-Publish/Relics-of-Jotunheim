@@ -44,7 +44,7 @@ const rest=Object.fromEntries(bones.map(b=>[b.id,b.rest]));
 const vertices=[],faces=[],materialFaces={},influences={};
 function addVertex(p,weights){
  const id='v'+vertices.length;
- vertices.push({id,position:p.map(x=>+x.toFixed(7))});
+ vertices.push({id,position:p});
  influences[id]=weights;
  return id;
 }
