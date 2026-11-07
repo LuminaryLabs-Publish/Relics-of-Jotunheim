@@ -1,12 +1,41 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createEngine } from 'nexusengine';
-import { createAuthoringDomain } from 'nexusengine/domains/authoring';
+import { createAuthoringDomain, createAuthoringDesignKit, createAuthoringArtKit, createAuthoringInteractionKit, createAuthoringCraftKit } from 'nexusengine/domains/authoring';
 
 // ROJ-0003: real NexusEngine n:authoring project, rig, skin, animation, GLB export.
 // A bounded WALK-only proof. Expand to six clips only after native export/reimport passes.
-const engine=createEngine({kits:createAuthoringDomain()});
+const full=process.argv.includes('--all');
+const engine=createEngine({kits:[
+ ...createAuthoringDomain(),createAuthoringDesignKit(),createAuthoringArtKit(),
+ createAuthoringInteractionKit(),createAuthoringCraftKit()
+]});
 const project=engine.n.authoringProject;
+const creativeCatalog=project.tools();
+const disciplines=[
+ ['design',['mesh.create','assembly.set']],
+ ['art',['mesh.create','rig.set','skin.bind','skin.weights','animation.set','material.set']],
+ ['interaction',['sequence.set']],
+ ['craft',[]]
+];
+const harnessEvidence=disciplines.map(([kind,allowedCapabilities])=>{
+ const api=engine.n['authoring'+kind[0].toUpperCase()+kind.slice(1)];
+ const request=api.request({
+   requestId:'roj03-'+kind+'-discovery',harnessId:kind,goalRef:'ROJ-0003 rigged walking fighter',
+   projectRef:'Relics-of-Jotunheim',targetRef:'fighter-walk-proof',
+   sourceRevision:{epoch:project.context().epoch,clock:project.context().clock},
+   inputRefs:[],allowedCapabilities,
+   acceptanceCriteria:[{id:'actual-native-output',kind:'structural',description:'Native Authoring operations with validation'}],
+   reviewPolicy:{humanRequired:false,reviewerIds:[]}
+ });
+ const discovered=api.discover(request,creativeCatalog);
+ if(kind==='design'||kind==='art')
+   assert.ok(discovered.length>0,kind+' harness did not discover native operations');
+ const plan=kind==='craft'?api.plan(request,[],creativeCatalog):
+   discovered.length?api.plan(request,[{id:discovered[0].id,args:{id:'fighter-walk-proof'}}],creativeCatalog):null;
+ return {kind,stages:api.stages,discovered:discovered.map(c=>c.id),planSchema:plan?.schema??null,
+   status:'discovery-and-preflight-only',sourceRevision:request.sourceRevision};
+});
 let serial=0;
 const command=(id,args)=>project.execute({
   requestId:'roj03-'+(++serial)+'-'+id,
@@ -108,6 +137,46 @@ const clips=[{id:'walk',name:'Walk',duration:.8,tracks:targets.map(([bone,angles
  id:bone+'-rotation',target:bone,property:'rotation',interpolation:'LINEAR',
  keys:times.map((time,i)=>({time,value:qmul(rest[bone].rotation,qx(angles[i]))}))
 }))}];
+
+const clipRot=(name,duration,bonesAndAngles)=>{
+ const stamps=[0,.25,.5,.75,1].map(x=>+((duration*x).toFixed(5)));
+ return {id:name.toLowerCase(),name,duration,tracks:bonesAndAngles.map(([bone,angles,axis='x'])=>({
+  id:name+'-'+bone+'-'+axis,target:bone,property:'rotation',interpolation:'LINEAR',
+  keys:stamps.map((time,i)=>({time,value:qmul(rest[bone].rotation,axis==='z'?qz(angles[i]):qx(angles[i]))}))
+ }))};
+};
+function yTrack(name,duration,bone,delta){
+ return {id:name+'-'+bone+'-translation',target:bone,property:'translation',interpolation:'LINEAR',
+ keys:[0,.25,.5,.75,1].map((f,i)=>({time:+(f*duration).toFixed(5),
+ value:add(rest[bone].translation,[0,delta[i],0])}))};
+}
+if(full){
+ const idle=clipRot('Idle',1.6,[
+  ['l_upper_arm',[0,.022,0,-.022,0]],['r_upper_arm',[0,-.022,0,.022,0]]
+ ]);idle.tracks.push(yTrack('Idle',1.6,'pelvis',[0,.012,0,-.012,0]));
+ const run=clipRot('Run',.56,[
+  ['l_thigh',[0,.72,0,-.72,0]],['r_thigh',[0,-.72,0,.72,0]],
+  ['l_shin',[0,.22,.55,.16,0]],['r_shin',[0,.16,.55,.22,0]],
+  ['l_upper_arm',[0,-.5,0,.5,0]],['r_upper_arm',[0,.5,0,-.5,0]]
+ ]);run.tracks.push(yTrack('Run',.56,'pelvis',[0,.035,0,-.02,0]));
+ const jump=clipRot('Jump',.68,[
+  ['l_thigh',[0,-.2,.42,.22,0]],['r_thigh',[0,-.2,.42,.22,0]],
+  ['l_shin',[0,.25,.52,.24,0]],['r_shin',[0,.25,.52,.24,0]],
+  ['l_upper_arm',[0,-.65,-.85,-.35,0]],['r_upper_arm',[0,-.65,-.85,-.35,0]]
+ ]);
+ const land=clipRot('Land',.36,[
+  ['l_thigh',[0,.22,.38,.16,0]],['r_thigh',[0,.22,.38,.16,0]],
+  ['l_upper_arm',[0,.24,.3,.12,0]],['r_upper_arm',[0,.24,.3,.12,0]]
+ ]);land.tracks.push(yTrack('Land',.36,'pelvis',[0,-.075,-.11,-.04,0]));
+ const dodge=clipRot('Dodge',.48,[
+  ['pelvis',[0,.2,.28,.13,0],'z'],
+  ['chest',[0,.24,.38,.15,0]],
+  ['l_thigh',[0,-.48,-.65,-.12,0]],['r_thigh',[0,.32,.43,.12,0]],
+  ['l_upper_arm',[0,.35,.48,.15,0]],['r_upper_arm',[0,-.35,-.48,-.15,0]]
+ ]);
+ clips.push(idle,run,jump,land,dodge);
+}
+
 command('animation.set',{id:'fighter-animation',content:{rigId:'fighter-rig',shapeId:null,clips,poses:[],arrangements:[]}});
 const materials=[['cloth',[.18,.31,.42,1]],['leather',[.41,.29,.23,1]],['skin',[.78,.61,.43,1]],['metal',[.49,.54,.58,1]]];
 for(const [id,baseColor] of materials)command('material.set',{id,content:{baseColor,roughness:.82,metallic:id==='metal'?.5:0}});
@@ -125,13 +194,24 @@ const peak=poses.slice(1,-1).reduce((max,p)=>Math.max(max,...p.vertices.map(v=>M
 assert.ok(peak>.025,'The walk must visibly deform vertices; measured peak '+peak);
 const loopDrift=Math.max(...poses[0].vertices.map((v,i)=>Math.hypot(...sub(v.position,poses.at(-1).vertices[i].position))));
 assert.ok(loopDrift<1e-6,'Walk cycle must return to its starting mesh');
-const artifact=await engine.n.authoringExport.export({requestId:'roj-0003-walk-glb',assemblyId:'fighter-scene',format:'glb'});
+const clipChecks=clips.map(clip=>{
+ const samples=[0,.25,.5,.75,1].map(f=>engine.n.authoringAnimation.sample('fighter-animation',clip.id,clip.duration*f));
+ const deform=samples.map(s=>engine.n.authoringSkin.evaluate('fighter-skin',s.pose).vertices);
+ const initial=deform[0].map(v=>v.position);
+ const peak=deform.slice(1).reduce((best,vs)=>Math.max(best,...vs.map((v,i)=>Math.hypot(...sub(v.position,initial[i])))),0);
+ assert.ok(peak>.004,clip.id+' must deform the character');
+ const drift=Math.max(...deform.at(-1).map((v,i)=>Math.hypot(...sub(v.position,initial[i]))));
+ assert.ok(drift<1e-6,clip.id+' should return to rest for clean transitions');
+ return {clip:clip.id,peakDeformationMeters:peak,endToStartMeters:drift};
+});
+const artifact=await engine.n.authoringExport.export({requestId:full?'roj-0003-full-glb':'roj-0003-walk-glb',assemblyId:'fighter-scene',format:'glb'});
 assert.equal(artifact.validation.errors,0,JSON.stringify(artifact.validation));
 assert.ok(artifact.bytes.length>1000);
 const view=new DataView(artifact.bytes.buffer,artifact.bytes.byteOffset,artifact.bytes.byteLength);
 assert.equal(view.getUint32(0,true),0x46546c67,'GLB magic');
 const gltf=JSON.parse(new TextDecoder().decode(artifact.bytes.slice(20,20+view.getUint32(12,true))).trim());
 assert.ok(gltf.skins?.length===1,'Native export must contain skin');
+assert.equal(gltf.animations?.length,clips.length,'Native GLB must contain each authored clip');
 assert.ok(gltf.animations?.some(a=>a.name.includes('Walk')),'Native export must contain walk animation');
 assert.ok(gltf.meshes?.length>=1,'Native export must contain mesh');
 const roundtrip=createEngine({kits:createAuthoringDomain()});
@@ -141,8 +221,9 @@ const loaded=await roundtrip.n.authoringImport.import({
 assert.ok(loaded.assemblyId,'Native import should create assembly');
 assert.equal(roundtrip.n.authoringValidation.project().errors,0,'Reimport project validation');
 const output='artifacts/roj-0003';
+const suffix=full?'all-clips':'walk-proof';
 await mkdir(output,{recursive:true});
-await writeFile(output+'/fighter-walk-proof.glb',artifact.bytes);
-await writeFile(output+'/native-receipt.json',JSON.stringify({schema:'roj-walk-proof/1',engineRevision:'c674a53e054640f5acc035180a2f3fe1d7d4fe03',meshVertices:vertices.length,meshFaces:faces.length,bones:bones.length,clips:clips.map(c=>c.id),peakDeformationMeters:peak,loopDriftMeters:loopDrift,glbBytes:artifact.bytes.length,glbHash:artifact.hash,validation:artifact.validation,reimportAssemblyId:loaded.assemblyId,source:artifact.receipt},null,2));
-await writeFile(output+'/canonical-source.json',JSON.stringify({mesh,rig,skin:project.getDocument('fighter-skin').content,animation:project.getDocument('fighter-animation').content,assembly:project.getDocument('fighter-scene').content},null,2));
-console.log(JSON.stringify({status:'PASS',engine:'NexusEngine Authoring',meshVertices:vertices.length,bones:bones.length,animationClips:clips.map(x=>x.name),peakDeformationMeters:peak,loopDriftMeters:loopDrift,GLBBytes:artifact.bytes.length,reimportAssemblyId:loaded.assemblyId},null,2));
+await writeFile(output+'/fighter-'+suffix+'.glb',artifact.bytes);
+await writeFile(output+'/native-'+suffix+'-receipt.json',JSON.stringify({schema:'roj-fighter-asset/2',engineRevision:'c674a53e054640f5acc035180a2f3fe1d7d4fe03',meshVertices:vertices.length,meshFaces:faces.length,bones:bones.length,clips:clips.map(c=>c.id),clipChecks,harnessEvidence,peakDeformationMeters:peak,loopDriftMeters:loopDrift,glbBytes:artifact.bytes.length,glbHash:artifact.hash,validation:artifact.validation,reimportAssemblyId:loaded.assemblyId,source:artifact.receipt},null,2));
+await writeFile(output+'/canonical-'+suffix+'-source.json',JSON.stringify({mesh,rig,skin:project.getDocument('fighter-skin').content,animation:project.getDocument('fighter-animation').content,assembly:project.getDocument('fighter-scene').content},null,2));
+console.log(JSON.stringify({status:'PASS',engine:'NexusEngine Authoring',meshVertices:vertices.length,bones:bones.length,animationClips:clips.map(x=>x.name),clipChecks,peakDeformationMeters:peak,loopDriftMeters:loopDrift,GLBBytes:artifact.bytes.length,reimportAssemblyId:loaded.assemblyId},null,2));
