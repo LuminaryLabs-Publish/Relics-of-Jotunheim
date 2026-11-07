@@ -22,20 +22,20 @@ function qmul([ax,ay,az,aw],[bx,by,bz,bw]){
 const identity=[0,0,0,1];
 const t=(translation=[0,0,0],rotation=identity)=>({translation,rotation,scale:[1,1,1]});
 const bones=[
- ['root',null,[0,0,0],identity,.2],
+ ['root',null,[0,0,0],identity,.25],
  ['pelvis','root',[0,1,0],identity,.25],
- ['spine','pelvis',[0,.25,0],identity,.45],
- ['chest','spine',[0,.45,0],identity,.25],
- ['neck','chest',[0,.23,0],identity,.13],
- ['head','neck',[0,.13,0],identity,.24],
- ['l_upper_arm','chest',[-.32,.09,0],qz(2.25),.34],
- ['l_forearm','l_upper_arm',[0,.34,0],identity,.35],
- ['r_upper_arm','chest',[.32,.09,0],qz(-2.25),.34],
- ['r_forearm','r_upper_arm',[0,.34,0],identity,.35],
- ['l_thigh','pelvis',[-.18,-.13,0],qx(Math.PI),.45],
- ['l_shin','l_thigh',[0,.45,0],identity,.37],
- ['r_thigh','pelvis',[.18,-.13,0],qx(Math.PI),.45],
- ['r_shin','r_thigh',[0,.45,0],identity,.37]
+ ['spine','pelvis',[0,.25,0],identity,.5],
+ ['chest','spine',[0,.5,0],identity,.25],
+ ['neck','chest',[0,.125,0],identity,.125],
+ ['head','neck',[0,.125,0],identity,.25],
+ ['l_upper_arm','chest',[-.375,0,0],[1,0,0,0],.375],
+ ['l_forearm','l_upper_arm',[0,.375,0],identity,.375],
+ ['r_upper_arm','chest',[.375,0,0],[1,0,0,0],.375],
+ ['r_forearm','r_upper_arm',[0,.375,0],identity,.375],
+ ['l_thigh','pelvis',[-.1875,-.125,0],[1,0,0,0],.5],
+ ['l_shin','l_thigh',[0,.5,0],identity,.375],
+ ['r_thigh','pelvis',[.1875,-.125,0],[1,0,0,0],.5],
+ ['r_shin','r_thigh',[0,.5,0],identity,.375]
 ].map(([id,parent,translation,rotation,length])=>({
  id,name:id,parent,rest:t(translation,rotation),length
 }));
