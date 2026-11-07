@@ -19,6 +19,18 @@ jobs:
           repository: LuminaryLabs-Dev/NexusEngine
           ref: c674a53e054640f5acc035180a2f3fe1d7d4fe03
           path: .engine-source
+      - name: Work around duplicate Authoring manifest export in pinned Core checkout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.engine-source/src/core-domains/authoring/domain.manifest.js')
+          source=p.read_text()
+          duplicate=[line for line in source.splitlines(keepends=True) if line.strip().startswith("...[{domainPath:'n:authoring:design'")]
+          if len(duplicate)!=1:
+              raise SystemExit('Manifest drift: expected exactly one duplicate publicEntries line')
+          p.write_text(source.replace(duplicate[0],''))
+          print('Removed duplicate Design/Art/Interaction/Craft publicEntries aliases in runner-local checkout; engine repo unchanged')
+          PY
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
