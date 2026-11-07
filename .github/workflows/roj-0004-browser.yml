@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'tests/**'
       - 'package.json'
       - 'experiments/roj-0003/**'
       - 'assets/glb/fighter-rigged-v2.glb'
