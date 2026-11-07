@@ -50,6 +50,8 @@ jobs:
         run: |
           npm run check
           npm run build
+      - name: Install video encoder
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Capture actual running third-person game
         run: |
           npm run preview -- --host 127.0.0.1 > /tmp/roj-preview.log 2>&1 &
