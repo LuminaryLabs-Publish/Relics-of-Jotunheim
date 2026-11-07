@@ -40,7 +40,9 @@ jobs:
           ln -s ../.engine-source node_modules/nexusengine
           node -p "require('./node_modules/nexusengine/package.json').version"
       - name: Run real Authoring mesh, rig, skin, walk and GLB reimport
-        run: node scripts/author-fighter-walk.mjs
+        run: |
+          node scripts/author-fighter-walk.mjs
+          node scripts/author-fighter-walk.mjs --all
       - name: Upload native GLB and proof
         if: success()
         uses: actions/upload-artifact@v4
