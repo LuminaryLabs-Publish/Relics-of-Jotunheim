@@ -1,0 +1,28 @@
+{
+  "id": "hymirs-pursuit",
+  "title": "Hymir's Pursuit",
+  "status": "design-only",
+  "playerGoal": "last-surviving-fighter",
+  "playerPower": "no-inherent-supernatural-powers",
+  "relicTypeLimit": 2,
+  "world": {
+    "exterior": [
+      "hymirs-hall",
+      "giant-highlands",
+      "pursuit-pass",
+      "broken-crossings",
+      "serpent-coast",
+      "escape-ridge"
+    ],
+    "interior": "jormungandr",
+    "hazards": [
+      "giants",
+      "sea",
+      "world-serpent"
+    ]
+  },
+  "prototype": {
+    "players": 4,
+    "platform": "quest-target-unverified"
+  }
+}

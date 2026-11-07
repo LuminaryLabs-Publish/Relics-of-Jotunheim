@@ -1,0 +1,22 @@
+{
+  "name": "relics-of-jotunheim",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "check": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "nexusengine": "github:LuminaryLabs-Dev/NexusEngine#c674a53e054640f5acc035180a2f3fe1d7d4fe03",
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "vite": "6.0.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
