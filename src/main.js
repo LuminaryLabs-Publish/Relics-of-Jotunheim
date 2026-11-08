@@ -44,14 +44,38 @@ const status=hud.querySelector('#roj-status');
 const clipNames=['walk','idle','run','jump','land','dodge','crouch_idle','crouch_walk','strafe_left','strafe_right','backward_walk','sprint','fall','heavy_landing','block','light_attack'];
 const aliases=Object.fromEntries(clipNames.map(n=>[n,n.replaceAll('_',' ').toLowerCase()]));
 const loader=new GLTFLoader();
-loader.load(new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href,gltf=>{
- character=gltf.scene;character.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
- scene.add(character);mixer=new THREE.AnimationMixer(character);
- for(const clip of gltf.animations){const label=clip.name.split('/').at(-1).trim().toLowerCase().replaceAll(' ','_');actions.set(label,mixer.clipAction(clip));}
- const missing=clipNames.filter(x=>!actions.has(x));
- if(missing.length){status.textContent='Missing animation clips: '+missing.join(', ');throw Error(status.textContent);}
- status.textContent='16 animations loaded · fighter ready';
-},undefined,error=>{status.textContent='GLB load failed: '+error.message;console.error(error);});
+const fighterV3Url=new URL('../assets/glb/fighter-anatomical-pass32-REVIEW.glb',import.meta.url).href;
+const fighterV2Url=new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href;
+let activeFighterVersion='loading';
+function loadFighter(url,isV3){
+ loader.load(url,gltf=>{
+  const loaded=new Map();
+  for(const clip of gltf.animations){
+   const label=clip.name.split('/').at(-1).trim().toLowerCase().replaceAll(' ','_');
+   loaded.set(label,clip);
+  }
+  const missing=clipNames.filter(x=>!loaded.has(x));
+  if(missing.length){
+   console.error('ROJ fighter missing clips:',missing);
+   if(isV3){loadFighter(fighterV2Url,false);return;}
+   status.textContent='Missing animation clips: '+missing.join(', ');
+   return;
+  }
+  character=gltf.scene;
+  character.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+  scene.add(character);
+  mixer=new THREE.AnimationMixer(character);
+  actions=new Map();
+  for(const [label,clip] of loaded)actions.set(label,mixer.clipAction(clip));
+  activeFighterVersion=isV3?'v3 feedback':'v2 fallback';
+  status.textContent=activeFighterVersion+' · 16 animations loaded';
+ },undefined,error=>{
+  console.error('ROJ fighter GLB load error:',error);
+  if(isV3){status.textContent='v3 unavailable · loading v2 fallback';loadFighter(fighterV2Url,false);}
+  else status.textContent='Fighter GLB load failed: '+(error?.message||String(error));
+ });
+}
+loadFighter(fighterV3Url);
 function animate(name){
  if(!mixer||current===name)return;
  const next=actions.get(name);if(!next)return;
@@ -97,7 +121,7 @@ function frame(){
  if(mixer)mixer.update(dt);
  camera.position.lerp(new THREE.Vector3(state.x+2.8,state.y+2.85,state.z+6.4),Math.min(1,dt*6));
  camera.lookAt(state.x,state.y+1.35,state.z-.7);
- if(character)status.textContent='Action: '+desired+' · Clips: '+actions.size+' · Grounded: '+state.grounded;
+ if(character)status.textContent='Model: '+activeFighterVersion+' · Action: '+desired+' · Clips: '+actions.size+' · Grounded: '+state.grounded;
  pressed.clear();
  engine.tick(dt);renderer.render(scene,camera);
 }
