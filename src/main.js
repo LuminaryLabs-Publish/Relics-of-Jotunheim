@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { createGameEngine } from './engine.js';
 import { createState, step, config } from '../experiments/roj-0003/movement.js';
 import { createHeadLook } from './animation/head-look.js';
-import { createCameraState, orbitCamera, zoomCamera, updateCamera, desiredCameraPosition, cameraPose, clamp } from './movement/third-person-camera.js';
+import { createCameraState, orbitCamera, zoomCamera, updateCamera, desiredCameraPosition, cameraPose, shoulderTarget, resolveCameraDistance, clamp } from './movement/third-person-camera.js';
 
 // ROJ-0007: NexusEngine owns Actor/Creature/Player composition; this browser
 // adapter retains ROJ-0003 movement until ROJ-0005 Motion/Contact is integrated.
@@ -83,9 +83,14 @@ renderer.domElement.addEventListener('pointercancel',()=>{orbitDragging=false;})
 renderer.domElement.addEventListener('lostpointercapture',()=>{orbitDragging=false;});
 renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();zoomCamera(cameraState,e.deltaY);},{passive:false});
 
+const reticle=document.createElement('div');
+reticle.id='roj-center-reticle';
+reticle.setAttribute('aria-hidden','true');
+reticle.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:#fff;pointer-events:none;z-index:5';
+host.appendChild(reticle);
 const hud=document.createElement('div');
 hud.style.cssText='position:fixed;left:18px;top:18px;max-width:440px;color:#f3e9d8;background:#111c22dd;border-left:3px solid #b68e57;padding:14px 18px;font:13px/1.55 system-ui;pointer-events:none';
-hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0009 · Pointer-locked camera &amp; head tracking</div><div>Click game to lock mouse · Esc release · L toggle · Right-drag fallback · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor registry: NexusEngine · Motion: ROJ-0003 compatibility adapter</small>';
+hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0010 · Right-shoulder camera &amp; center dot</div><div>Click game to lock mouse · Esc release · L toggle · Right-drag fallback · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor registry: NexusEngine · Motion: ROJ-0003 compatibility adapter</small>';
 host.appendChild(hud);
 const pointerPrompt=document.createElement('div');
 pointerPrompt.id='roj-pointer-prompt';
@@ -142,7 +147,8 @@ function reset(){
  releaseInput();
 }
 function collisionCameraDistance(){
- focusVec.set(cameraState.focus.x,cameraState.focus.y,cameraState.focus.z);
+ const aim=shoulderTarget(cameraState,cameraState.focus);
+ focusVec.set(aim.x,aim.y,aim.z);
  const wish=desiredCameraPosition(cameraState,cameraState.focus);
  wishVec.set(wish.x,wish.y,wish.z);rayDirection.copy(wishVec).sub(focusVec);
  const length=rayDirection.length();if(length<.001)return cameraState.distance;
@@ -195,7 +201,7 @@ function frame(){
  headLook?.afterAnimation({cameraYaw:cameraState.yaw,cameraPitch:cameraState.pitch,bodyHeading:state.heading,action:desired,locked:freeLookLocked||orbitDragging,dt});
  updateCamera(cameraState,state,dt);
  // Solve occlusion after smoothing the follow focus, not from a fixed world offset.
- const distance=collisionCameraDistance();
+ const distance=resolveCameraDistance(cameraState,collisionCameraDistance(),dt);
  if(distance<cameraState.distance){
   const limited=desiredCameraPosition(cameraState,cameraState.focus,distance);
   cameraState.position.x=limited.x;cameraState.position.y=limited.y;cameraState.position.z=limited.z;
