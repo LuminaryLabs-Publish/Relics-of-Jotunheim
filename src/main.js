@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { createGameEngine } from './engine.js';
 import { createState, step, config } from '../experiments/roj-0003/movement.js';
+import { createHeadLook } from './animation/head-look.js';
 import { createCameraState, orbitCamera, zoomCamera, updateCamera, desiredCameraPosition, cameraPose, clamp } from './movement/third-person-camera.js';
 
 // ROJ-0007: NexusEngine owns Actor/Creature/Player composition; this browser
@@ -32,16 +33,29 @@ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.16,.21,2.1,8),mat('#85664b
 const head=new THREE.Mesh(new THREE.SphereGeometry(.38,12,8),mat('#bba47d'));head.position.y=2.3;head.castShadow=true;dummy.add(head);
 const arms=new THREE.Mesh(new THREE.BoxGeometry(1.25,.14,.16),mat('#85664b'));arms.position.y=1.45;dummy.add(arms);
 
-let state=createState(),character=null,mixer=null,actions=new Map(),current='',actionUntil=0,health=100;
+let state=createState(),character=null,mixer=null,headLook=null,actions=new Map(),current='',actionUntil=0,health=100;
 const keys=new Set(),pressed=new Set();
 const cameraState=createCameraState(),cameraRay=new THREE.Raycaster();
 const focusVec=new THREE.Vector3(),wishVec=new THREE.Vector3(),rayDirection=new THREE.Vector3();
 let orbitDragging=false,lastPointerX=0,lastPointerY=0;
 let freeLookLocked=false;
+let pointerLockError='';
 function releaseInput(){keys.clear();pressed.clear();orbitDragging=false;}
 // L toggles free mouse-look. Escape exits pointer lock natively; right-drag
 // remains available without pointer lock (including in embedded browsers).
-document.addEventListener('pointerlockchange',()=>{freeLookLocked=document.pointerLockElement===renderer.domElement;orbitDragging=false;});
+document.addEventListener('pointerlockchange',()=>{
+ freeLookLocked=document.pointerLockElement===renderer.domElement;orbitDragging=false;
+ renderer.domElement.style.cursor=freeLookLocked?'none':'auto';
+ if(!freeLookLocked)releaseInput();
+ updatePointerPrompt();
+});
+document.addEventListener('pointerlockerror',()=>{pointerLockError='Mouse capture unavailable. Right-drag to look.';updatePointerPrompt();});
+function requestGamePointerLock(){
+ if(document.pointerLockElement===renderer.domElement)return;
+ try{const pending=renderer.domElement.requestPointerLock?.();pending?.catch?.(()=>{pointerLockError='Mouse capture denied. Right-drag to look.';updatePointerPrompt();});}
+ catch{pointerLockError='Mouse capture unavailable. Right-drag to look.';updatePointerPrompt();}
+}
+
 document.addEventListener('mousemove',e=>{if(freeLookLocked)orbitCamera(cameraState,e.movementX,e.movementY);});
 addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
@@ -49,9 +63,10 @@ addEventListener('keydown',e=>{
  if(!keys.has(k))pressed.add(k);keys.add(k);
 });
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-addEventListener('blur',releaseInput);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseInput();});
+addEventListener('blur',()=>{releaseInput();if(freeLookLocked)document.exitPointerLock?.();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){releaseInput();if(freeLookLocked)document.exitPointerLock?.();}});
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+renderer.domElement.addEventListener('click',e=>{if(e.button===0&&!freeLookLocked)requestGamePointerLock();});
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(e.button!==2||freeLookLocked)return;
  e.preventDefault();orbitDragging=true;lastPointerX=e.clientX;lastPointerY=e.clientY;
@@ -70,8 +85,14 @@ renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();zoomCamera(c
 
 const hud=document.createElement('div');
 hud.style.cssText='position:fixed;left:18px;top:18px;max-width:440px;color:#f3e9d8;background:#111c22dd;border-left:3px solid #b68e57;padding:14px 18px;font:13px/1.55 system-ui;pointer-events:none';
-hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0008 · Independent facing &amp; free-look</div><div>WASD move · Right-drag orbit · L free-look · Esc release · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor registry: NexusEngine · Motion: ROJ-0003 compatibility adapter</small>';
+hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0009 · Pointer-locked camera &amp; head tracking</div><div>Click game to lock mouse · Esc release · L toggle · Right-drag fallback · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor registry: NexusEngine · Motion: ROJ-0003 compatibility adapter</small>';
 host.appendChild(hud);
+const pointerPrompt=document.createElement('div');
+pointerPrompt.id='roj-pointer-prompt';
+pointerPrompt.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 16px;background:#101b23e8;color:#f3e9d8;border:1px solid #b68e57;border-radius:6px;font:14px system-ui;pointer-events:none;text-align:center';
+host.appendChild(pointerPrompt);
+function updatePointerPrompt(){pointerPrompt.textContent=freeLookLocked?'Mouse captured · Esc to release':(pointerLockError||'Click gameplay to capture mouse · Esc releases · Right-drag fallback');}
+updatePointerPrompt();
 const status=hud.querySelector('#roj-status');
 const clipNames=['walk','idle','run','jump','land','dodge','crouch_idle','crouch_walk','strafe_left','strafe_right','backward_walk','sprint','fall','heavy_landing','block','light_attack'];
 const loader=new GLTFLoader();
@@ -93,7 +114,7 @@ function loadFighter(url,isV3){
   }
   character=gltf.scene;
   character.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-  scene.add(character);mixer=new THREE.AnimationMixer(character);actions=new Map();
+  scene.add(character);mixer=new THREE.AnimationMixer(character);headLook=createHeadLook(character);actions=new Map();
   for(const [label,clip] of loaded)actions.set(label,mixer.clipAction(clip));
   activeFighterVersion=isV3?'v3 feedback':'v2 fallback';
   status.textContent=activeFighterVersion+' · 16 animations loaded';
@@ -116,7 +137,7 @@ const clock=new THREE.Clock();
 function reset(){
  state=createState();actionUntil=0;health=100;current='';
  if(character)character.position.set(0,0,0);
- if(mixer)mixer.stopAllAction();
+ if(mixer)mixer.stopAllAction();headLook?.reset();
  // Keep camera yaw, pitch and distance on reset so the player's chosen view persists.
  releaseInput();
 }
@@ -137,7 +158,7 @@ function frame(){
  if(pressed.has('v'))cameraState.yaw=state.heading;
  if(pressed.has('l')){
   if(freeLookLocked)document.exitPointerLock?.();
-  else renderer.domElement.requestPointerLock?.();
+  else requestGamePointerLock();
  }
  const crouch=keys.has('c'),sprint=keys.has('shift')&&!crouch;
  const input={forward:keys.has('w'),backward:keys.has('s'),left:keys.has('a'),right:keys.has('d'),
@@ -169,7 +190,9 @@ function frame(){
   // Its authored skeleton and animation root are left untouched.
   character.rotation.y=state.heading;
  }
+ headLook?.beforeAnimation();
  if(mixer)mixer.update(dt);
+ headLook?.afterAnimation({cameraYaw:cameraState.yaw,cameraPitch:cameraState.pitch,bodyHeading:state.heading,action:desired,locked:freeLookLocked||orbitDragging,dt});
  updateCamera(cameraState,state,dt);
  // Solve occlusion after smoothing the follow focus, not from a fixed world offset.
  const distance=collisionCameraDistance();
@@ -180,7 +203,7 @@ function frame(){
  const pose=cameraPose(cameraState);
  camera.position.set(pose.position.x,pose.position.y,pose.position.z);
  camera.lookAt(pose.target.x,pose.target.y,pose.target.z);
- if(character)status.textContent='Model: '+activeFighterVersion+' · Action: '+desired+' · Clips: '+actions.size+' · Grounded: '+state.grounded;
+ if(character)status.textContent='Model: '+activeFighterVersion+' · Action: '+desired+' · Clips: '+actions.size+' · Grounded: '+state.grounded+' · Head: '+(headLook?'tracked':'camera only');
  pressed.clear();engine.tick(dt);renderer.render(scene,camera);
 }
 frame();
