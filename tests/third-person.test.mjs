@@ -98,7 +98,7 @@ test('free look while moving leaves movement and facing in world space',()=>{
  step(s,{forward:true,cameraYaw:c.yaw},1/60);
  assert.ok(s.vz<0,'first tick retains prior travel velocity');
  for(let i=0;i<80;i++)step(s,{forward:true,cameraYaw:c.yaw},1/120);
- assert.ok(s.vx<0);close(s.heading,-Math.PI/2,.06);
+ assert.ok(s.vx<0);close(s.heading,Math.PI/2,.06);
 });
 test('block and attack facing lock preserves heading while allowing movement',()=>{
  for(const key of ['block','attack']){
@@ -107,7 +107,7 @@ test('block and attack facing lock preserves heading while allowing movement',()
   for(let i=0;i<30;i++)step(s,{right:true,cameraYaw:0,lockFacing:true},1/60);
   close(s.heading,original);assert.ok(s.x>0,key);
   for(let i=0;i<20;i++)step(s,{right:true},1/60);
-  assert.ok(s.heading>0);
+  assert.ok(s.heading<0);
  }
 });
 test('dodge direction and facing remain consistent under orbit',()=>{
@@ -118,8 +118,32 @@ test('dodge direction and facing remain consistent under orbit',()=>{
 test('forward axes remain consistent for yaw 0 and 180 degrees',()=>{
  for(const yaw of [0,Math.PI]){
   const s=createState();for(let i=0;i<80;i++)step(s,{forward:true,cameraYaw:yaw},1/120);
-  const forward={x:Math.sin(s.heading),z:-Math.cos(s.heading)};
+  const forward={x:-Math.sin(s.heading),z:-Math.cos(s.heading)};
   const v=movementVector({forward:true},yaw);
   close(forward.x,v.x,.04);close(forward.z,v.z,.04);
  }
+});
+
+// ROJ-0008 follow-up: Three.js +Y yaw rotates local -Z toward world -X.
+test('A faces camera-left and D faces camera-right (visual -Z forward)',()=>{
+ for(const [key,expected] of [['left',-1],['right',1]]){
+  const s=createState();for(let i=0;i<90;i++)step(s,{[key]:true,cameraYaw:0},1/120);
+  const visualForwardX=-Math.sin(s.heading);
+  close(visualForwardX,expected,.02);
+  assert.ok(Math.sign(s.vx)===expected);
+ }
+});
+test('visual forward matches travel at cardinal and diagonal camera headings',()=>{
+ for(const yaw of [0,Math.PI/2,Math.PI,Math.PI*1.5])
+  for(const keys of [{forward:true},{backward:true},{left:true},{right:true},{forward:true,right:true},{forward:true,left:true}]){
+   const s=createState();for(let i=0;i<120;i++)step(s,{...keys,cameraYaw:yaw},1/120);
+   const v=movementVector(keys,yaw);
+   close(-Math.sin(s.heading),v.x,.03);close(-Math.cos(s.heading),v.z,.03);
+  }
+});
+test('dodge without input follows visual fighter forward',()=>{
+ const s=createState();for(let i=0;i<90;i++)step(s,{right:true},1/120);
+ const facing={x:-Math.sin(s.heading),z:-Math.cos(s.heading)};
+ step(s,{dodgePressed:true},1/120);
+ close(s.dodgeX,facing.x,.02);close(s.dodgeZ,facing.z,.02);
 });

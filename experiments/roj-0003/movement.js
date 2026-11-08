@@ -18,7 +18,7 @@ export function step(s,input,delta,c=config){
  s.landingRemaining=Math.max(0,s.landingRemaining-dt);
  const {x:dx,z:dz,magnitude}=movementVector(input,Number(input.cameraYaw)||0);
  if(input.dodgePressed&&s.grounded&&s.dodgeCooldown<=0){
-  const wanted=magnitude?{x:dx,z:dz}:{x:Math.sin(s.heading),z:-Math.cos(s.heading)};
+  const wanted=magnitude?{x:dx,z:dz}:{x:-Math.sin(s.heading),z:-Math.cos(s.heading)};
   s.dodgeX=wanted.x;s.dodgeZ=wanted.z;
   s.dodgeRemaining=c.dodgeDuration;s.dodgeCooldown=c.dodgeCooldown;
  }
@@ -35,7 +35,7 @@ export function step(s,input,delta,c=config){
  // Combat can hold facing independently, without rotating the camera.
  const travelSpeed=Math.hypot(s.vx,s.vz);
  if(!input.lockFacing&&travelSpeed>.12){
-  const desiredHeading=Math.atan2(s.vx,-s.vz);
+  const desiredHeading=Math.atan2(-s.vx,-s.vz);
   const rate=(!s.grounded?c.airTurnRate:input.sprint?c.sprintTurnRate:c.turnRate)??Math.PI*3.5;
   s.heading=moveAngleToward(s.heading,desiredHeading,rate*dt);
  }
