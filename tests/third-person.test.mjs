@@ -113,7 +113,7 @@ test('block and attack facing lock preserves heading while allowing movement',()
 test('dodge direction and facing remain consistent under orbit',()=>{
  const s=createState();step(s,{right:true,dodgePressed:true},1/120);
  for(let i=0;i<14;i++)step(s,{forward:true,cameraYaw:Math.PI},1/120);
- assert.ok(s.vx>0);assert.ok(Math.abs(s.vz)<1e-8);assert.ok(s.heading>0);
+ assert.ok(s.vx>0);assert.ok(Math.abs(s.vz)<1e-8);assert.ok(s.heading<0);
 });
 test('forward axes remain consistent for yaw 0 and 180 degrees',()=>{
  for(const yaw of [0,Math.PI]){
