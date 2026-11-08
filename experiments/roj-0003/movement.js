@@ -30,8 +30,12 @@ export function step(s,input,delta,c=config){
   const v=approachVector(s.vx,s.vz,dx*speed,dz*speed,a*dt);
   s.vx=v.x;s.vz=v.z;
  }
- if(magnitude&&s.dodgeRemaining===0){
-  const desiredHeading=Math.atan2(dx,-dz);
+ // ROJ-0008: camera yaw is view-only. Face *actual* world-space travel,
+ // not the input wish vector while acceleration is still changing direction.
+ // Combat can hold facing independently, without rotating the camera.
+ const travelSpeed=Math.hypot(s.vx,s.vz);
+ if(!input.lockFacing&&travelSpeed>.12){
+  const desiredHeading=Math.atan2(s.vx,-s.vz);
   const rate=(!s.grounded?c.airTurnRate:input.sprint?c.sprintTurnRate:c.turnRate)??Math.PI*3.5;
   s.heading=moveAngleToward(s.heading,desiredHeading,rate*dt);
  }

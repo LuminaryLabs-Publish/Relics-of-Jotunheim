@@ -72,3 +72,54 @@ test('camera-relative distance is stable across 30/60/120Hz',()=>{
  const distances=[30,60,120].map(hz=>{const s=createState();for(let i=0;i<hz*3;i++)step(s,{forward:true,right:true,cameraYaw:.8},1/hz);return Math.hypot(s.x,s.z)});
  assert.ok(Math.max(...distances)-Math.min(...distances)<.11,JSON.stringify(distances));
 });
+
+// ROJ-0008: independent look, velocity-facing and combat heading invariants.
+test('idle free-look does not rotate fighter',()=>{
+ const c=createCameraState(),s=createState(),original=s.heading;
+ for(let i=0;i<360;i++){orbitCamera(c,10,0);step(s,{cameraYaw:c.yaw},1/60);}
+ close(s.heading,original);close(s.x,0);close(s.z,0);
+});
+test('face actual velocity during direction reversal, not premature wish direction',()=>{
+ const s=createState();for(let i=0;i<40;i++)step(s,{forward:true},1/60);
+ const oldHeading=s.heading;
+ step(s,{backward:true},1/120);
+ assert.ok(s.vz<0,'still physically traveling forward during reversal');
+ close(s.heading,oldHeading);
+ for(let i=0;i<60;i++)step(s,{backward:true},1/120);
+ assert.ok(s.vz>0);assert.ok(Math.abs(s.heading)>2.5);
+});
+test('free look while moving leaves movement and facing in world space',()=>{
+ const c=createCameraState(),s=createState();
+ for(let i=0;i<90;i++)step(s,{forward:true,cameraYaw:c.yaw},1/120);
+ const before=s.heading;
+ orbitCamera(c,Math.PI/2/c.sensitivity,0);
+ for(let i=0;i<60;i++)step(s,{cameraYaw:c.yaw},1/120);
+ close(s.heading,before);
+ step(s,{forward:true,cameraYaw:c.yaw},1/60);
+ assert.ok(s.vz<0,'first tick retains prior travel velocity');
+ for(let i=0;i<80;i++)step(s,{forward:true,cameraYaw:c.yaw},1/120);
+ assert.ok(s.vx<0);close(s.heading,-Math.PI/2,.06);
+});
+test('block and attack facing lock preserves heading while allowing movement',()=>{
+ for(const key of ['block','attack']){
+  const s=createState();for(let i=0;i<30;i++)step(s,{forward:true},1/60);
+  const original=s.heading;
+  for(let i=0;i<30;i++)step(s,{right:true,cameraYaw:0,lockFacing:true},1/60);
+  close(s.heading,original);assert.ok(s.x>0,key);
+  for(let i=0;i<20;i++)step(s,{right:true},1/60);
+  assert.ok(s.heading>0);
+ }
+});
+test('dodge direction and facing remain consistent under orbit',()=>{
+ const s=createState();step(s,{right:true,dodgePressed:true},1/120);
+ for(let i=0;i<14;i++)step(s,{forward:true,cameraYaw:Math.PI},1/120);
+ assert.ok(s.vx>0);assert.ok(Math.abs(s.vz)<1e-8);assert.ok(s.heading>0);
+});
+test('forward axes remain consistent for yaw 0 and 180 degrees',()=>{
+ for(const yaw of [0,Math.PI]){
+  const s=createState();for(let i=0;i<80;i++)step(s,{forward:true,cameraYaw:yaw},1/120);
+  const forward={x:Math.sin(s.heading),z:-Math.cos(s.heading)};
+  const v=movementVector({forward:true},yaw);
+  close(forward.x,v.x,.04);close(forward.z,v.z,.04);
+ }
+});

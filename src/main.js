@@ -37,7 +37,12 @@ const keys=new Set(),pressed=new Set();
 const cameraState=createCameraState(),cameraRay=new THREE.Raycaster();
 const focusVec=new THREE.Vector3(),wishVec=new THREE.Vector3(),rayDirection=new THREE.Vector3();
 let orbitDragging=false,lastPointerX=0,lastPointerY=0;
+let freeLookLocked=false;
 function releaseInput(){keys.clear();pressed.clear();orbitDragging=false;}
+// L toggles free mouse-look. Escape exits pointer lock natively; right-drag
+// remains available without pointer lock (including in embedded browsers).
+document.addEventListener('pointerlockchange',()=>{freeLookLocked=document.pointerLockElement===renderer.domElement;orbitDragging=false;});
+document.addEventListener('mousemove',e=>{if(freeLookLocked)orbitCamera(cameraState,e.movementX,e.movementY);});
 addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
  if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();
@@ -48,12 +53,12 @@ addEventListener('blur',releaseInput);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseInput();});
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('pointerdown',e=>{
- if(e.button!==2)return;
+ if(e.button!==2||freeLookLocked)return;
  e.preventDefault();orbitDragging=true;lastPointerX=e.clientX;lastPointerY=e.clientY;
  try{renderer.domElement.setPointerCapture(e.pointerId);}catch{}
 });
 renderer.domElement.addEventListener('pointermove',e=>{
- if(!orbitDragging)return;
+ if(!orbitDragging||freeLookLocked)return;
  if(!(e.buttons&2)){orbitDragging=false;return;}
  orbitCamera(cameraState,e.clientX-lastPointerX,e.clientY-lastPointerY);
  lastPointerX=e.clientX;lastPointerY=e.clientY;
@@ -65,7 +70,7 @@ renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();zoomCamera(c
 
 const hud=document.createElement('div');
 hud.style.cssText='position:fixed;left:18px;top:18px;max-width:440px;color:#f3e9d8;background:#111c22dd;border-left:3px solid #b68e57;padding:14px 18px;font:13px/1.55 system-ui;pointer-events:none';
-hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0007 · Camera-relative third-person movement</div><div>WASD move · Right-mouse drag orbit · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor registry: NexusEngine · Motion: ROJ-0003 compatibility adapter</small>';
+hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0008 · Independent facing &amp; free-look</div><div>WASD move · Right-drag orbit · L free-look · Esc release · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor registry: NexusEngine · Motion: ROJ-0003 compatibility adapter</small>';
 host.appendChild(hud);
 const status=hud.querySelector('#roj-status');
 const clipNames=['walk','idle','run','jump','land','dodge','crouch_idle','crouch_walk','strafe_left','strafe_right','backward_walk','sprint','fall','heavy_landing','block','light_attack'];
@@ -130,9 +135,14 @@ function frame(){
  const dt=Math.min(clock.getDelta(),.04),now=performance.now()/1000;
  if(pressed.has('r'))reset();
  if(pressed.has('v'))cameraState.yaw=state.heading;
+ if(pressed.has('l')){
+  if(freeLookLocked)document.exitPointerLock?.();
+  else renderer.domElement.requestPointerLock?.();
+ }
  const crouch=keys.has('c'),sprint=keys.has('shift')&&!crouch;
  const input={forward:keys.has('w'),backward:keys.has('s'),left:keys.has('a'),right:keys.has('d'),
-  sprint,cameraYaw:cameraState.yaw,jumpPressed:pressed.has(' '),dodgePressed:pressed.has('alt')};
+  sprint,cameraYaw:cameraState.yaw,jumpPressed:pressed.has(' '),dodgePressed:pressed.has('alt'),
+  lockFacing:keys.has('q')||pressed.has('f')||(current==='light_attack'&&now<actionUntil)};
  const speedLimit=crouch?{...config,walk:1.65,run:1.65}:config;
  const wasAir=!state.grounded,previousVy=state.vy;
  step(state,input,dt,speedLimit);
@@ -153,7 +163,12 @@ function frame(){
  else desired=state.animation;
  if(now<actionUntil&&current==='light_attack')desired='light_attack';
  animate(desired);
- if(character){character.position.set(state.x,state.y,state.z);character.rotation.y=state.heading;}
+ if(character){
+  character.position.set(state.x,state.y,state.z);
+  // The active v3 GLB has local -Z forward (toe geometry projects toward -Z).
+  // Its authored skeleton and animation root are left untouched.
+  character.rotation.y=state.heading;
+ }
  if(mixer)mixer.update(dt);
  updateCamera(cameraState,state,dt);
  // Solve occlusion after smoothing the follow focus, not from a fixed world offset.
