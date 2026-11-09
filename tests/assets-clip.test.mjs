@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
-import {FIGHTER_ASSETS,REQUIRED_FIGHTER_CLIPS} from '../src/gameplay/fighter-assets.js';
+import {FIGHTER_ASSETS,REQUIRED_FIGHTER_CLIPS,fighterLoadOrder} from '../src/gameplay/fighter-assets.js';
 function readGlb(path){
  const data=readFileSync(new URL('../'+path,import.meta.url));
  assert.equal(data.readUInt32LE(0),0x46546c67,'GLB magic');
@@ -28,9 +28,9 @@ for(const [edition,path] of Object.entries(FIGHTER_ASSETS)){
 }
 
 test('Pass43 binary is byte-exact with 18 skinned joints and animated elbows/knees',()=>{
- const bytes=readFileSync(new URL('../'+FIGHTER_ASSETS.preferred,import.meta.url));
+ const bytes=readFileSync(new URL('../'+FIGHTER_ASSETS.experimental,import.meta.url));
  assert.equal(createHash('sha256').update(bytes).digest('hex'),'1c0473c415fa1dd6ef19a2e25138703b8625fac54dae846ea7d833a226d78645');
- const gltf=readGlb(FIGHTER_ASSETS.preferred),joints=new Set(gltf.skins[0].joints);
+ const gltf=readGlb(FIGHTER_ASSETS.experimental),joints=new Set(gltf.skins[0].joints);
  assert.equal(joints.size,18);
  const byName=new Map(gltf.nodes.map((n,i)=>[n.name,i]));
  const hingeIds=['l_elbow','r_elbow','l_knee','r_knee'].map(n=>{
@@ -49,7 +49,15 @@ test('Pass43 binary is byte-exact with 18 skinned joints and animated elbows/kne
 });
 test('both prior fighter GLBs remain usable backups',()=>{
  assert.notEqual(FIGHTER_ASSETS.preferred,FIGHTER_ASSETS.fallback);
- assert.notEqual(FIGHTER_ASSETS.fallback,FIGHTER_ASSETS.legacyFallback);
+ assert.notEqual(FIGHTER_ASSETS.fallback,FIGHTER_ASSETS.experimental);
+ assert.equal(readGlb(FIGHTER_ASSETS.preferred).animations.length,16);
  assert.equal(readGlb(FIGHTER_ASSETS.fallback).animations.length,16);
- assert.equal(readGlb(FIGHTER_ASSETS.legacyFallback).animations.length,16);
+});
+
+test('default fighter load never selects unapproved Pass 43',()=>{
+ assert.deepEqual(fighterLoadOrder(),[FIGHTER_ASSETS.preferred,FIGHTER_ASSETS.fallback]);
+ assert.deepEqual(fighterLoadOrder({experimental:true}),[
+  FIGHTER_ASSETS.experimental,FIGHTER_ASSETS.preferred,FIGHTER_ASSETS.fallback
+ ]);
+ assert.equal(FIGHTER_ASSETS.preferred,'assets/glb/fighter-anatomical-pass32-REVIEW.glb');
 });

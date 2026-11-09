@@ -16,3 +16,7 @@ Development preview only: Pass 43 replaces Pass 32 as the preferred fighter. Ear
 
 ## Acceptance still pending
 Sandbox CPU skinning and glTF structural checks passed; live 3D skin deformation/crossfade/foot-planting and 60-second authentic gameplay video remain unverified in this sandbox. This is a playable feedback asset, not final anatomical approval.
+
+## Visual regression and safe downgrade
+
+A later real-game screenshot showed a largely torso-only silhouette. This contradicts the Pass 43 CPU preview and blocks its visual acceptance. The Pass 43 GLB is retained for opt-in investigation, but the game defaults to the previously visible Pass 32 fighter pending real WebGL deformation checks. Camera collision allowed an unsafe 0.8-unit minimum; a separate hotfix now enforces the 3.4-unit normal minimum. See `docs/ROJ-0006-PASS44-HOTFIX.md`. Neither issue should be described as fully resolved solely by automated GLB integrity tests.

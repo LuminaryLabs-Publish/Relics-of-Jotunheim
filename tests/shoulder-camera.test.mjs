@@ -24,9 +24,9 @@ test('shoulder target differs from actor focus and follows yaw',()=>{
  p=cameraPose(s);near(p.target.x,0);near(p.target.z,-.7);
 });
 test('collision moves inward immediately and recovers smoothly',()=>{
- const s=createCameraState();near(resolveCameraDistance(s,2,1/60),2);
+ const s=createCameraState();near(resolveCameraDistance(s,2,1/60),s.minDistance);
  const recovered=resolveCameraDistance(s,s.distance,1/60);
- assert.ok(recovered>2&&recovered<s.distance);
+ assert.ok(recovered>s.minDistance&&recovered<s.distance);
  for(let i=0;i<200;i++)resolveCameraDistance(s,s.distance,1/60);
  near(s.collisionDistance,s.distance,1e-5);
 });
@@ -42,4 +42,14 @@ test('zoom and pitch do not reverse shoulder framing',()=>{
  const s=createCameraState();zoomCamera(s,9999);
  orbitCamera(s,0,10000);assert.ok(actorScreenOffset(s)<0);
  orbitCamera(s,0,-10000);assert.ok(actorScreenOffset(s)<0);
+});
+
+test('camera obstruction cannot push viewpoint inside the fighter',()=>{
+ const s=createCameraState();
+ for(const hit of [0,0.1,.8,1.4,2,3.3]){
+  const distance=resolveCameraDistance(s,hit,1/60);
+  near(distance,s.minDistance);
+  const p=desiredCameraPosition(s,s.focus,distance),t=shoulderTarget(s,s.focus);
+  assert.ok(Math.hypot(p.x-t.x,p.y-t.y,p.z-t.z)>=s.minDistance-1e-7);
+ }
 });

@@ -6,7 +6,7 @@
 
 - **NexusEngine:** Creature/Character/Player registration and possession; native Action Locomotion, World Contact and Locomotion Contact Response contracts; corrected frames published to Core Motion. Two-Bone IK Kit is installed but gameplay foot planting/IK deformation is still future work.
 - **Game:** `src/movement/player-motion.js` is the only production locomotion state owner. `experiments/roj-0003/movement.js` remains test/historical code, **not** part of the live game. ROJ-0005's terrain slope fixture is not live arena geometry.
-- **Presentation:** Three.js renders the active **Pass 43 elbow/knee articulated GLB** (18 joints, 16 updated clips); Pass 32 is the first fallback, with v2 retained as a second fallback. The NexusEngine creature descriptor is switched to the actually loaded GLB. Additive head/neck/chest rotations follow camera look in the character's local coordinate system; movement and camera headings are independent.
+- **Presentation:** Three.js renders the **Pass 32 stable fighter** by default (16 clips), with v2 as fallback. The 18-joint Pass 43 remains available only with `?fighter=pass43` while its real WebGL deformation is investigated; it is not considered visually accepted. The NexusEngine creature descriptor is switched to the actually loaded GLB. Additive head/neck/chest rotations follow camera look in the character's local coordinate system; movement and camera headings are independent.
 - **Runtime:** a bounded 60-Hz fixed-step simulation, browser pointer lock requested synchronously from click/L, right-mouse fallback, over-right-shoulder orbit, basic camera obstruction and a 6px visual-only center reticle.
 
 ## Controls
@@ -44,3 +44,7 @@ Read [`docs/ROJ-0011-CUTOVER.md`](docs/ROJ-0011-CUTOVER.md) for the truth matrix
 - [Development Capture & Publishing Guide](https://docs.google.com/document/d/1_VPgdUR1BQQA_UFzIKPI75625U6eFUkNV5SEBGNqipU/edit)
 
 No public gameplay launch or production release is claimed by this development cutover.
+
+## ROJ-0006 hotfix: Pass 43 visual regression
+
+The reported live-game screenshot after Pass 43 showed a torso-only/jagged character. The skin's neutral inverse bind pose matches the source numerically, but that alone is not WebGL approval. The right-shoulder collision solver could also pull the camera to 0.8 world units, producing a dangerously close camera that clips the character. This hotfix restores previously visible Pass 32 by default, constrains collision camera pull-in to the normal 3.4-unit minimum, and preserves Pass 43 as an explicitly requested experimental comparison with `?fighter=pass43`. Both prior GLBs remain unchanged. See `docs/ROJ-0006-PASS44-HOTFIX.md`.

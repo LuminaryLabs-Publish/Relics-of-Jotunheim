@@ -4,7 +4,7 @@ import { createGameEngine, setFighterAsset } from './engine.js';
 import { createPlayerMotion } from './movement/player-motion.js';
 import { installPointerLook } from './runtime/pointer-look.js';
 import { createFixedStepper } from './runtime/fixed-step.js';
-import { FIGHTER_ASSETS, REQUIRED_FIGHTER_CLIPS } from './gameplay/fighter-assets.js';
+import { FIGHTER_ASSETS, REQUIRED_FIGHTER_CLIPS, fighterLoadOrder } from './gameplay/fighter-assets.js';
 import { createHeadLook } from './animation/head-look.js';
 import { createCameraState, orbitCamera, zoomCamera, updateCamera, desiredCameraPosition, cameraPose, shoulderTarget, resolveCameraDistance, clamp } from './movement/third-person-camera.js';
 
@@ -62,7 +62,7 @@ reticle.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,
 host.appendChild(reticle);
 const hud=document.createElement('div');
 hud.style.cssText='position:fixed;left:18px;top:18px;max-width:440px;color:#f3e9d8;background:#111c22dd;border-left:3px solid #b68e57;padding:14px 18px;font:13px/1.55 system-ui;pointer-events:none';
-hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0011 · Unified motion / camera preview</div><div>Click game to lock mouse · Esc release · L toggle · Right-drag fallback · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack (visual) · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor / Motion / World Contact: NexusEngine · Combat: animation preview</small>';
+hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0006 · Stable fighter / safe shoulder camera</div><div>Click game to lock mouse · Esc release · L toggle · Right-drag fallback · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack (visual) · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor / Motion / World Contact: NexusEngine · Combat: animation preview</small>';
 host.appendChild(hud);
 const pointerPrompt=document.createElement('div');
 pointerPrompt.id='roj-pointer-prompt';
@@ -74,12 +74,15 @@ const pointer=installPointerLook({canvas:renderer.domElement,documentRef:documen
 const status=hud.querySelector('#roj-status');
 const clipNames=REQUIRED_FIGHTER_CLIPS;
 const loader=new GLTFLoader();
-// Static URLs keep all three fighter editions in the Vite production bundle.
-const fighterCandidates=[
- {path:FIGHTER_ASSETS.preferred,label:'Pass 43 articulated fighter',url:new URL('../assets/glb/fighter-pass43-elbow-knee-rig-animated.glb',import.meta.url).href},
- {path:FIGHTER_ASSETS.fallback,label:'Pass 32 fallback',url:new URL('../assets/glb/fighter-anatomical-pass32-REVIEW.glb',import.meta.url).href},
- {path:FIGHTER_ASSETS.legacyFallback,label:'v2 fallback',url:new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href}
-];
+// Keep the experimental file bundled for opt-in diagnosis, but NEVER select it
+// automatically while its real-WebGL articulation remains unverified.
+const fighterSources=new Map([
+ [FIGHTER_ASSETS.preferred,{path:FIGHTER_ASSETS.preferred,label:'Pass 32 stable fighter',url:new URL('../assets/glb/fighter-anatomical-pass32-REVIEW.glb',import.meta.url).href}],
+ [FIGHTER_ASSETS.fallback,{path:FIGHTER_ASSETS.fallback,label:'v2 fallback',url:new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href}],
+ [FIGHTER_ASSETS.experimental,{path:FIGHTER_ASSETS.experimental,label:'Pass 43 experimental',url:new URL('../assets/glb/fighter-pass43-elbow-knee-rig-animated.glb',import.meta.url).href}]
+]);
+const useExperimental=new URLSearchParams(location.search).get('fighter')==='pass43';
+const fighterCandidates=fighterLoadOrder({experimental:useExperimental}).map(path=>fighterSources.get(path));
 function loadFighter(index=0){
  const candidate=fighterCandidates[index];
  if(!candidate){status.textContent='No valid fighter GLB available';return;}
@@ -98,7 +101,7 @@ function loadFighter(index=0){
   }
   const missing=clipNames.filter(x=>!loaded.has(x));
   if(missing.length){tryFallback('Missing clips: '+missing.join(', '));return;}
-  if(index===0){
+  if(candidate.path===FIGHTER_ASSETS.experimental){
    const hinges=new Set();
    gltf.scene.traverse(o=>{if(o.isBone&&['l_elbow','r_elbow','l_knee','r_knee'].includes(o.name))hinges.add(o.name);});
    if(hinges.size!==4){tryFallback('Pass 43 elbow/knee bones absent');return;}
@@ -140,7 +143,7 @@ function collisionCameraDistance(){
  const length=rayDirection.length();if(length<.001)return cameraState.distance;
  cameraRay.set(focusVec,rayDirection.multiplyScalar(1/length));cameraRay.near=.1;cameraRay.far=length;
  const hits=cameraRay.intersectObjects([stones,dummy],true);
- return hits.length?Math.max(.8,hits[0].distance-cameraState.collisionPadding):cameraState.distance;
+ return hits.length?Math.max(cameraState.minDistance,hits[0].distance-cameraState.collisionPadding):cameraState.distance;
 }
 function frame(){
  requestAnimationFrame(frame);

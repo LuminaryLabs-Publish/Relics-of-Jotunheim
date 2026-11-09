@@ -36,7 +36,8 @@ export function shoulderTarget(state,focus){
  return {x:focus.x+Math.cos(state.yaw)*state.shoulder,y:focus.y,z:focus.z-Math.sin(state.yaw)*state.shoulder};
 }
 export function desiredCameraPosition(state,focus,clippedDistance=state.distance){
- const d=clamp(clippedDistance,Math.min(0.65,state.minDistance),state.maxDistance);
+ // Keep collision pull-in outside the fighter; never allow the 0.8m near-body camera.
+ const d=clamp(clippedDistance,state.minDistance,state.maxDistance);
  const sin=Math.sin(state.yaw),cos=Math.cos(state.yaw),horizontal=d*Math.cos(state.pitch);
  const target=shoulderTarget(state,focus);
  return {x:target.x+sin*horizontal,y:target.y+d*Math.sin(state.pitch),z:target.z+cos*horizontal};
@@ -51,7 +52,7 @@ export function updateCamera(state,character,dt,clipDistance=state.distance){
 }
 export function cameraPose(state){return {position:{...state.position},target:shoulderTarget(state,state.focus)};}
 export function resolveCameraDistance(state,clearDistance,dt){
- const safe=clamp(clearDistance,0.8,state.distance);
+ const safe=clamp(clearDistance,state.minDistance,state.distance);
  state.collisionDistance=Math.min(state.collisionDistance??state.distance,safe);
  if(safe>state.collisionDistance)state.collisionDistance+=(safe-state.collisionDistance)*smoothFactor(state.followRate,dt);
  return state.collisionDistance;
