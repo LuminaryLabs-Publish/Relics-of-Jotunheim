@@ -20,7 +20,7 @@ export function gaitTargets(phase,speed,action){
   return {z:stance?0:-travel*stride,y:.11+(stance?0:lift*(athletic?.19:.11))};
  });
 }
-export function createArticulatedFighter(){
+export function createArticulatedFighter({solveIK}={}){
  const group=new THREE.Group(),bones=new Map(),all=[];
  const add=(name,parent,x,y,z)=>{
   const b=new THREE.Bone();b.name=name;b.position.set(x,y,z);
@@ -135,7 +135,18 @@ export function createArticulatedFighter(){
   for(const [i,side] of ['l','r'].entries()){
    const thigh=bones.get(side+'_thigh'),shin=bones.get(side+'_shin'),foot=bones.get(side+'_foot');
    const stance=targets[i],crouch=action.startsWith('crouch')?.19:0;
-   const pose=solveLeg(.94-crouch,stance.y,stance.z*bend);
+   let pose=solveLeg(.94-crouch,stance.y,stance.z*bend);
+   if(typeof solveIK==='function'){
+    const root={x:0,y:.94-crouch,z:0};
+    const target={x:0,y:stance.y,z:stance.z*bend};
+    const result=solveIK({root,target,upperLength:.45,lowerLength:.42,
+     poleDirection:{x:0,y:0,z:-1}});
+    if(result?.mid&&result?.end){
+     const hip=Math.atan2(-result.mid.z,root.y-result.mid.y);
+     const shinWorld=Math.atan2(-(result.end.z-result.mid.z),result.mid.y-result.end.y);
+     pose={hip,knee:shinWorld-hip,ankle:-shinWorld};
+    }
+   }
    thigh.rotation.x=pose.hip;
    shin.rotation.x=pose.knee;
    foot.rotation.x=pose.ankle;
