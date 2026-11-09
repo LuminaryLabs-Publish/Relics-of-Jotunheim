@@ -37,9 +37,11 @@ export function createArticulatedFighter({solveIK}={}){
   add(side+'_thigh','pelvis',x,-.06,0);
   add(side+'_shin',side+'_thigh',0,-.45,0);
   add(side+'_foot',side+'_shin',0,-.42,0);
+  add(side+'_toe',side+'_foot',0,-.04,-.13);
   add(side+'_upper_arm','chest',armX,.07,0);
   add(side+'_forearm',side+'_upper_arm',0,-.37,0);
-  add(side+'_hand',side+'_forearm',0,-.32,0);
+  add(side+'_wrist',side+'_forearm',0,-.29,0);
+  add(side+'_hand',side+'_wrist',0,-.04,0);
  }
  group.updateMatrixWorld(true);
  const skeleton=new THREE.Skeleton(all);
