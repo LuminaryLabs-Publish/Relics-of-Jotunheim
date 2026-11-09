@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCombatState,playerStrike,enemyStrike,COMBAT_RULES} from '../src/gameplay/combat-state.js';
+import {createCombatState,playerStrike,enemyStrike,claimRelic,COMBAT_RULES} from '../src/gameplay/combat-state.js';
 test('player cannot spam attacks, and range matters',()=>{
  const s=createCombatState();
  assert.equal(playerStrike(s,1,9).hit,false);
@@ -28,4 +28,14 @@ test('defeat prevents any further hits',()=>{
  for(let t=1;t<20;t+=2)enemyStrike(s,t,1);
  assert.equal(s.result,'defeat');
  assert.equal(playerStrike(s,40,1).started,false);
+});
+
+test('relic can only be collected after victory, at close range',()=>{
+ const s=createCombatState();
+ assert.equal(claimRelic(s,1),false);
+ for(let t=1;t<=5;t++)playerStrike(s,t,1);
+ assert.equal(claimRelic(s,5),false);
+ assert.equal(claimRelic(s,1),true);
+ assert.equal(s.result,'complete');
+ assert.equal(s.relicClaimed,true);
 });
