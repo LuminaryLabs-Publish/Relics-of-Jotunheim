@@ -6,6 +6,7 @@ import { installPointerLook } from './runtime/pointer-look.js';
 import { createFixedStepper } from './runtime/fixed-step.js';
 import { FIGHTER_ASSETS, REQUIRED_FIGHTER_CLIPS, fighterLoadOrder } from './gameplay/fighter-assets.js';
 import { createHeadLook } from './animation/head-look.js';
+import { createArticulatedFighter } from './animation/articulated-fighter.js';
 import { createCombatState, playerStrike, enemyStrike, claimRelic } from './gameplay/combat-state.js';
 import { createCameraState, orbitCamera, zoomCamera, updateCamera, desiredCameraPosition, cameraPose, shoulderTarget, resolveCameraDistance, clamp } from './movement/third-person-camera.js';
 
@@ -67,7 +68,7 @@ const relicHalo=new THREE.Mesh(new THREE.TorusGeometry(.4,.035,8,32),mat('#d4b56
 relic.add(relicHalo);relic.visible=false;
 let combat=createCombatState(),strikeFlash=0,receivedFlash=0;
 const motion=createPlayerMotion(engine);
-let state=motion.getState(),character=null,mixer=null,headLook=null;
+let state=motion.getState(),character=null,mixer=null,headLook=null,articulated=null;
 let actions=new Map(),current='',attackUntil=0,heavyLandingUntil=0,activeFighterVersion='loading';
 const keys=new Set(),pressed=new Set(),fixed=createFixedStepper();
 const cameraState=createCameraState(),cameraRay=new THREE.Raycaster();
@@ -115,10 +116,25 @@ const fighterSources=new Map([
  [FIGHTER_ASSETS.experimental,{path:FIGHTER_ASSETS.experimental,label:'Pass 43 experimental',url:new URL('../assets/glb/fighter-pass43-elbow-knee-rig-animated.glb',import.meta.url).href}]
 ]);
 const requestedFighter=new URLSearchParams(location.search).get('fighter');
+// Default: knee/ankle articulated presentation; ?fighter=pass45/pass32/pass43 compares old GLBs.
+if(!requestedFighter||requestedFighter==='articulated'){
+ try{
+  articulated=createArticulatedFighter();
+  if(articulated.jointCount<20)throw new Error('Incomplete anatomical rig');
+  character=articulated.scene;scene.add(character);
+  headLook=createHeadLook(character);
+  activeFighterVersion='Articulated anatomical prototype ('+articulated.jointCount+' joints)';
+  status.textContent=activeFighterVersion+' · IK gait active';
+ }catch(error){
+  console.error('Articulated fighter unavailable; restoring legacy GLB:',error);
+  articulated=null;character=null;
+ }
+}
 const fighterCandidates=fighterLoadOrder({experimental:requestedFighter==='pass43',stable:requestedFighter==='pass32'})
  .map(path=>fighterSources.get(path));
 
 function loadFighter(index=0){
+ if(articulated)return;
  const candidate=fighterCandidates[index];
  if(!candidate){status.textContent='No valid fighter GLB available';return;}
  function tryFallback(reason){
@@ -161,7 +177,7 @@ function loadFighter(index=0){
   status.textContent=activeFighterVersion+' · 16 animations loaded';
  },undefined,error=>tryFallback(error?.message||String(error)));
 }
-loadFighter();
+if(!articulated)loadFighter();
 function animate(name){
  if(!mixer||current===name)return;
  const next=actions.get(name);if(!next)return;
@@ -177,7 +193,7 @@ function reset(){
  combat=createCombatState();strikeFlash=0;receivedFlash=0;
  foe.position.copy(foeSpawn);foe.visible=true;relic.visible=false;
  if(character)character.position.set(0,0,0);
- mixer?.stopAllAction();headLook?.reset();
+ mixer?.stopAllAction();headLook?.reset();articulated?.reset();
  // Keep user's preferred yaw/pitch/zoom on restart.
  keys.clear();pressed.clear();
 }
@@ -264,13 +280,14 @@ function frame(){
  else if(crouch)desired=Math.hypot(state.vx,state.vz)>.25?'crouch_walk':'crouch_idle';
  else if(sprint&&Math.hypot(state.vx,state.vz)>4)desired='sprint';
  else desired=state.animation;
- animate(desired);
+ if(!articulated)animate(desired);
  if(character){
   character.position.set(state.x,state.y,state.z);
   character.rotation.y=state.heading;
  }
  headLook?.beforeAnimation();
- mixer?.update(dt);
+ if(articulated)articulated.update({dt,state,action:desired});
+ else mixer?.update(dt);
  headLook?.afterAnimation({cameraYaw:cameraState.yaw,cameraPitch:cameraState.pitch,
   bodyHeading:state.heading,action:desired,locked:pointer.locked||pointer.dragging,dt});
  updateCamera(cameraState,state,dt);
@@ -283,7 +300,7 @@ function frame(){
  camera.position.set(pose.position.x,pose.position.y,pose.position.z);
  camera.lookAt(pose.target.x,pose.target.y,pose.target.z);
  if(character){
-  const label='Model: '+activeFighterVersion+' · Action: '+desired+' · Clips: '+actions.size+
+  const label='Model: '+activeFighterVersion+' · Action: '+desired+' · Clips: '+(articulated?'procedural gait':actions.size)+
    ' · Grounded: '+state.grounded+' · Head: '+(headLook?'tracked':'camera only');
   if(status.textContent!==label)status.textContent=label;
  }
