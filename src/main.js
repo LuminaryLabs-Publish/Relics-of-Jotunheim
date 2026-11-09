@@ -74,21 +74,34 @@ const pointer=installPointerLook({canvas:renderer.domElement,documentRef:documen
 const status=hud.querySelector('#roj-status');
 const clipNames=REQUIRED_FIGHTER_CLIPS;
 const loader=new GLTFLoader();
-// Static new URL strings ensure Vite includes both authored binary assets.
-const fighterV3Url=new URL('../assets/glb/fighter-anatomical-pass32-REVIEW.glb',import.meta.url).href;
-const fighterV2Url=new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href;
-function loadFighter(url,isV3){
- loader.load(url,gltf=>{
+// Static URLs keep all three fighter editions in the Vite production bundle.
+const fighterCandidates=[
+ {path:FIGHTER_ASSETS.preferred,label:'Pass 43 articulated fighter',url:new URL('../assets/glb/fighter-pass43-elbow-knee-rig-animated.glb',import.meta.url).href},
+ {path:FIGHTER_ASSETS.fallback,label:'Pass 32 fallback',url:new URL('../assets/glb/fighter-anatomical-pass32-REVIEW.glb',import.meta.url).href},
+ {path:FIGHTER_ASSETS.legacyFallback,label:'v2 fallback',url:new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href}
+];
+function loadFighter(index=0){
+ const candidate=fighterCandidates[index];
+ if(!candidate){status.textContent='No valid fighter GLB available';return;}
+ function tryFallback(reason){
+  console.error('ROJ fighter rejected:',candidate.label,reason);
+  if(index+1<fighterCandidates.length){
+   status.textContent=candidate.label+' unavailable · trying backup';
+   loadFighter(index+1);
+  }else status.textContent='Fighter GLB load failed: '+String(reason);
+ }
+ loader.load(candidate.url,gltf=>{
   const loaded=new Map();
   for(const clip of gltf.animations){
    const label=clip.name.split('/').at(-1).trim().toLowerCase().replaceAll(' ','_');
    loaded.set(label,clip);
   }
   const missing=clipNames.filter(x=>!loaded.has(x));
-  if(missing.length){
-   console.error('ROJ fighter missing clips:',missing);
-   if(isV3){loadFighter(fighterV2Url,false);return;}
-   status.textContent='Missing animation clips: '+missing.join(', ');return;
+  if(missing.length){tryFallback('Missing clips: '+missing.join(', '));return;}
+  if(index===0){
+   const hinges=new Set();
+   gltf.scene.traverse(o=>{if(o.isBone&&['l_elbow','r_elbow','l_knee','r_knee'].includes(o.name))hinges.add(o.name);});
+   if(hinges.size!==4){tryFallback('Pass 43 elbow/knee bones absent');return;}
   }
   if(character){scene.remove(character);mixer?.stopAllAction();}
   character=gltf.scene;
@@ -96,16 +109,12 @@ function loadFighter(url,isV3){
   scene.add(character);mixer=new THREE.AnimationMixer(character);
   headLook=createHeadLook(character);actions=new Map();current='';
   for(const [label,clip] of loaded)actions.set(label,mixer.clipAction(clip));
-  setFighterAsset(engine,isV3?FIGHTER_ASSETS.preferred:FIGHTER_ASSETS.fallback);
-  activeFighterVersion=isV3?'v3 feedback':'v2 fallback';
+  setFighterAsset(engine,candidate.path);
+  activeFighterVersion=candidate.label;
   status.textContent=activeFighterVersion+' · 16 animations loaded';
- },undefined,error=>{
-  console.error('ROJ fighter GLB load error:',error);
-  if(isV3){status.textContent='v3 unavailable · loading v2 fallback';loadFighter(fighterV2Url,false);}
-  else status.textContent='Fighter GLB load failed: '+(error?.message||String(error));
- });
+ },undefined,error=>tryFallback(error?.message||String(error)));
 }
-loadFighter(fighterV3Url,true);
+loadFighter();
 function animate(name){
  if(!mixer||current===name)return;
  const next=actions.get(name);if(!next)return;

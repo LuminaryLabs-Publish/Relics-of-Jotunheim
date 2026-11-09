@@ -6,7 +6,7 @@
 
 - **NexusEngine:** Creature/Character/Player registration and possession; native Action Locomotion, World Contact and Locomotion Contact Response contracts; corrected frames published to Core Motion. Two-Bone IK Kit is installed but gameplay foot planting/IK deformation is still future work.
 - **Game:** `src/movement/player-motion.js` is the only production locomotion state owner. `experiments/roj-0003/movement.js` remains test/historical code, **not** part of the live game. ROJ-0005's terrain slope fixture is not live arena geometry.
-- **Presentation:** Three.js renders the active Pass 32 anatomical GLB with 16 clips and v2 fallback. The NexusEngine creature descriptor is switched to the actually loaded GLB. Additive head/neck/chest rotations follow camera look in the character's local coordinate system; movement and camera headings are independent.
+- **Presentation:** Three.js renders the active **Pass 43 elbow/knee articulated GLB** (18 joints, 16 updated clips); Pass 32 is the first fallback, with v2 retained as a second fallback. The NexusEngine creature descriptor is switched to the actually loaded GLB. Additive head/neck/chest rotations follow camera look in the character's local coordinate system; movement and camera headings are independent.
 - **Runtime:** a bounded 60-Hz fixed-step simulation, browser pointer lock requested synchronously from click/L, right-mouse fallback, over-right-shoulder orbit, basic camera obstruction and a 6px visual-only center reticle.
 
 ## Controls

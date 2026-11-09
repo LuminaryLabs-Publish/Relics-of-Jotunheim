@@ -18,6 +18,8 @@ test('character fallback updates actual NexusEngine descriptor without replacing
  const e=createGameEngine();setFighterAsset(e,FIGHTER_ASSETS.fallback);
  assert.equal(e.n.creature.get('roj-fighter-creature').body.descriptorId,FIGHTER_ASSETS.fallback);
  assert.equal(e.n.player.getControlledCharacter('local-player').character.id,'roj-fighter');
+ setFighterAsset(e,FIGHTER_ASSETS.legacyFallback);
+ assert.equal(e.n.creature.get('roj-fighter-creature').body.descriptorId,FIGHTER_ASSETS.legacyFallback);
  setFighterAsset(e,FIGHTER_ASSETS.preferred);
  assert.equal(e.n.creature.get('roj-fighter-creature').body.descriptorId,FIGHTER_ASSETS.preferred);
  assert.throws(()=>setFighterAsset(e,'random.glb'),RangeError);
