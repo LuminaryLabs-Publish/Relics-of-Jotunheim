@@ -8,6 +8,7 @@ import { FIGHTER_ASSETS, REQUIRED_FIGHTER_CLIPS, fighterLoadOrder } from './game
 import { createHeadLook } from './animation/head-look.js';
 import { createArticulatedFighter } from './animation/articulated-fighter.js';
 import { createCombatState, playerStrike, enemyStrike, claimRelic } from './gameplay/combat-state.js';
+import { createPlayerActionController } from './gameplay/player-action-controller.js';
 import { createCameraState, orbitCamera, zoomCamera, updateCamera, desiredCameraPosition, cameraPose, shoulderTarget, resolveCameraDistance, clamp } from './movement/third-person-camera.js';
 
 // ROJ-0011: NexusEngine owns Actor, Motion and World Contact.
@@ -68,12 +69,14 @@ const relicHalo=new THREE.Mesh(new THREE.TorusGeometry(.4,.035,8,32),mat('#d4b56
 relic.add(relicHalo);relic.visible=false;
 let combat=createCombatState(),strikeFlash=0,receivedFlash=0;
 const motion=createPlayerMotion(engine);
+const controller=createPlayerActionController();
+let controllerResult={blocking:false,intent:{sprint:false}};
 let state=motion.getState(),character=null,mixer=null,headLook=null,articulated=null;
-let actions=new Map(),current='',attackUntil=0,heavyLandingUntil=0,activeFighterVersion='loading';
+let actions=new Map(),current='',heavyLandingUntil=0,activeFighterVersion='loading';
 const keys=new Set(),pressed=new Set(),fixed=createFixedStepper();
 const cameraState=createCameraState(),cameraRay=new THREE.Raycaster();
 const focusVec=new THREE.Vector3(),wishVec=new THREE.Vector3(),rayDirection=new THREE.Vector3();
-function releaseInput(){keys.clear();pressed.clear();fixed.reset();}
+function releaseInput(){keys.clear();pressed.clear();controller.clearBuffers();fixed.reset();}
 addEventListener('keydown',e=>{
  if(e.repeat)return;
  const k=e.key.toLowerCase();
@@ -93,7 +96,7 @@ reticle.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,
 host.appendChild(reticle);
 const hud=document.createElement('div');
 hud.style.cssText='position:fixed;left:18px;top:18px;max-width:440px;color:#f3e9d8;background:#111c22dd;border-left:3px solid #b68e57;padding:14px 18px;font:13px/1.55 system-ui;pointer-events:none';
-hud.innerHTML='<strong style="font-size:16px">RELICS OF JOTUNHEIM</strong><div id="roj-combat">Health 100 · Rival 100</div><div id="roj-status">Loading fighter…</div><small>WASD move · Mouse look · F strike · Q block · Shift sprint · Alt dodge · R restart</small>';
+hud.innerHTML='<strong style="font-size:16px">RELICS OF JOTUNHEIM</strong><div id="roj-combat">Health 100 · Rival 100</div><div id="roj-stamina">Stamina 100 / 100</div><div id="roj-status">Loading fighter…</div><small>WASD move · Mouse look · F strike · Q block · Shift sprint · Alt dodge · R restart</small>';
 host.appendChild(hud);
 const pointerPrompt=document.createElement('div');
 pointerPrompt.id='roj-pointer-prompt';
@@ -104,6 +107,7 @@ const pointer=installPointerLook({canvas:renderer.domElement,documentRef:documen
  onStatus:({locked,message})=>{pointerPrompt.textContent=message;pointerPrompt.style.opacity=locked?'.6':'1';}});
 const status=hud.querySelector('#roj-status');
 const combatStatus=hud.querySelector('#roj-combat');
+const staminaStatus=hud.querySelector('#roj-stamina');
 const clipNames=REQUIRED_FIGHTER_CLIPS;
 const loader=new GLTFLoader();
 // All edition URLs are static so Vite includes each GLB in the Pages bundle.
@@ -189,7 +193,8 @@ function animate(name){
 const clock=new THREE.Clock();
 function reset(){
  motion.reset();fixed.reset();state=motion.getState();
- attackUntil=0;heavyLandingUntil=0;current='';
+ controller.reset();controllerResult={blocking:false,intent:{sprint:false}};
+ heavyLandingUntil=0;current='';
  combat=createCombatState();strikeFlash=0;receivedFlash=0;
  foe.position.copy(foeSpawn);foe.visible=true;relic.visible=false;
  if(character)character.position.set(0,0,0);
@@ -216,25 +221,26 @@ function frame(){
   if(claimRelic(combat,Math.hypot(state.x-relic.position.x,state.z-relic.position.z)))relic.visible=false;
   pressed.delete('e');
  }
- if(pressed.has('f')){
-  const dx=foe.position.x-state.x,dz=foe.position.z-state.z;
-  const range=Math.hypot(dx,dz);
-  const forwardX=-Math.sin(state.heading),forwardZ=-Math.cos(state.heading);
-  const facing=range<.001||(dx*forwardX+dz*forwardZ)/range>0.05;
-  const strike=playerStrike(combat,now,facing?range:Infinity);
-  if(strike.started)attackUntil=now+.48;
-  if(strike.hit)strikeFlash=.2;
-  pressed.delete('f');
- }
  const crouch=keys.has('c'),sprint=keys.has('shift')&&!crouch;
  const input={forward:keys.has('w'),backward:keys.has('s'),left:keys.has('a'),right:keys.has('d'),
-  sprint,crouch,cameraYaw:cameraState.yaw,lockFacing:keys.has('q')||now<attackUntil};
+  sprint,crouch,block:keys.has('q'),cameraYaw:cameraState.yaw};
  let wasHeavyLanding=false;
  const {steps}=fixed.advance(dt,stepDt=>{
   const before=state;
-  state=motion.tick({...input,jumpPressed:pressed.has(' '),dodgePressed:pressed.has('alt')},stepDt);
+  controllerResult=controller.tick({...input,jumpPressed:pressed.has(' '),
+   dodgePressed:pressed.has('alt'),attackPressed:pressed.has('f')},stepDt,
+   {motion:state,combatResult:combat.result});
+  state=motion.tick(controllerResult.intent,stepDt);
+  if(controllerResult.strike){
+   const dx=foe.position.x-state.x,dz=foe.position.z-state.z;
+   const range=Math.hypot(dx,dz);
+   const forwardX=-Math.sin(state.heading),forwardZ=-Math.cos(state.heading);
+   const facing=range<.001||(dx*forwardX+dz*forwardZ)/range>0.05;
+   const strike=playerStrike(combat,now,facing?range:Infinity);
+   if(strike.hit)strikeFlash=.2;
+  }
   if(!before.grounded&&state.grounded&&before.vy<-6)wasHeavyLanding=true;
-  pressed.delete(' ');pressed.delete('alt');
+  pressed.delete(' ');pressed.delete('alt');pressed.delete('f');
   engine.tick(stepDt);
  });
  if(wasHeavyLanding)heavyLandingUntil=now+.34;
@@ -248,7 +254,7 @@ function frame(){
    foe.position.z+=dz/gap*speed*dt;
   }
   if(gap>.001)foe.rotation.y=Math.atan2(dx,dz);
-  const hit=enemyStrike(combat,now,gap,keys.has('q')&&state.grounded);
+  const hit=enemyStrike(combat,now,gap,controllerResult.blocking);
   if(hit.hit)receivedFlash=.3;
  }
  strikeFlash=Math.max(0,strikeFlash-dt);
@@ -268,18 +274,11 @@ function frame(){
   'Health '+combat.playerHealth+' / 100 · Rival '+combat.enemyHealth+' / 100'+
   (receivedFlash>0?' · HIT!':strikeFlash>0?' · STRIKE!':'');
  if(combatStatus.textContent!==combatLabel)combatStatus.textContent=combatLabel;
+ const staminaLabel='Stamina '+Math.ceil(controller.getState().stamina)+' / '+controller.getState().maxStamina;
+ if(staminaStatus.textContent!==staminaLabel)staminaStatus.textContent=staminaLabel;
  // If <1/60s elapsed, keep jump/dodge edges queued until simulation advances.
  if(steps>0){pressed.clear();}
- let desired='idle';
- if(now<attackUntil)desired='light_attack';
- else if(keys.has('q'))desired='block';
- else if(state.dodgeRemaining>0)desired='dodge';
- else if(!state.grounded)desired=state.vy<0?'fall':'jump';
- else if(now<heavyLandingUntil)desired='heavy_landing';
- else if(state.landingRemaining>0)desired='land';
- else if(crouch)desired=Math.hypot(state.vx,state.vz)>.25?'crouch_walk':'crouch_idle';
- else if(sprint&&Math.hypot(state.vx,state.vz)>4)desired='sprint';
- else desired=state.animation;
+ const desired=controller.animation(state,{crouch,sprint:controllerResult.intent.sprint},now<heavyLandingUntil);
  if(!articulated)animate(desired);
  if(character){
   character.position.set(state.x,state.y,state.z);
