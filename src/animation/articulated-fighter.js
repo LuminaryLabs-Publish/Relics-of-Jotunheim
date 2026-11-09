@@ -55,7 +55,7 @@ export function createArticulatedFighter({solveIK}={}){
  };
  // Ring loft in rest/world coordinates, with joint-adjacent normalized weights.
  function loft(rings,material,weightsForY){
-  const positions=[],indices=[],weights=[],faces=[],n=20;
+  const positions=[],indices=[],weights=[],faces=[],n=24;
   for(let r=0;r<rings.length;r++){
    const [cx,y,cz,rx,rz]=rings[r];
    const pairs=weightsForY(y);
