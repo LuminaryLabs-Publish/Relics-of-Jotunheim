@@ -134,9 +134,11 @@ export function createArticulatedFighter({solveIK}={}){
   phaseSpeed+=(targetRate-phaseSpeed)*clamp(dt*11,0,1);phase=(phase+phaseSpeed*dt)%TAU;
   const targets=gaitTargets(phase,velocity,locomoting?action:'idle');
   const bend=locomoting?1:0;
+  const alpha=clamp(dt*13,0,1),crouch=action.startsWith('crouch')?.19:0;
+  bones.get('pelvis').position.y+=(1.0-crouch-bones.get('pelvis').position.y)*alpha;
   for(const [i,side] of ['l','r'].entries()){
    const thigh=bones.get(side+'_thigh'),shin=bones.get(side+'_shin'),foot=bones.get(side+'_foot');
-   const stance=targets[i],crouch=action.startsWith('crouch')?.19:0;
+   const stance=targets[i];
    let pose=solveLeg(.94-crouch,stance.y,stance.z*bend);
    if(typeof solveIK==='function'){
     const root={x:0,y:.94-crouch,z:0};
@@ -149,16 +151,24 @@ export function createArticulatedFighter({solveIK}={}){
      pose={hip,knee:shinWorld-hip,ankle:-shinWorld};
     }
    }
-   thigh.rotation.x=pose.hip;
-   shin.rotation.x=pose.knee;
-   foot.rotation.x=pose.ankle;
+   thigh.rotation.x+=(pose.hip-thigh.rotation.x)*alpha;
+   shin.rotation.x+=(pose.knee-shin.rotation.x)*alpha;
+   foot.rotation.x+=(pose.ankle-foot.rotation.x)*alpha;
+   const toe=bones.get(side+'_toe');
+   const roll=locomoting?Math.max(0,Math.cos(phase+i*PI))*.16:0;
+   toe.rotation.x+=(roll-toe.rotation.x)*alpha;
    const swing=Math.sin(phase+i*PI)*bend;
    const upper=bones.get(side+'_upper_arm'),lower=bones.get(side+'_forearm');
-   upper.rotation.x=clamp(-swing*(action==='sprint'?.64:.40),-.78,.78);
-   lower.rotation.x=-.12-Math.max(0,swing)*.18;
+   const arm=clamp(-swing*(action==='sprint'?.64:.40),-.78,.78);
+   const elbow=-.12-Math.max(0,swing)*.18;
+   upper.rotation.x+=(arm-upper.rotation.x)*alpha;
+   lower.rotation.x+=(elbow-lower.rotation.x)*alpha;
   }
-  bones.get('pelvis').rotation.z=locomoting?Math.sin(phase)*.035:0;
-  bones.get('chest').rotation.y=locomoting?Math.sin(phase)*.06:0;
+  const hipRoll=locomoting?Math.sin(phase)*.035:0;
+  const chestTurn=locomoting?Math.sin(phase)*.06:0;
+  bones.get('pelvis').rotation.z+=(hipRoll-bones.get('pelvis').rotation.z)*alpha;
+  bones.get('chest').rotation.y+=(chestTurn-bones.get('chest').rotation.y)*alpha;
+  bones.get('chest').rotation.x+=(0-bones.get('chest').rotation.x)*alpha;
   if(action==='block'){
    bones.get('l_upper_arm').rotation.x=-1.05;
    bones.get('r_upper_arm').rotation.x=-1.05;
@@ -168,8 +178,17 @@ export function createArticulatedFighter({solveIK}={}){
    bones.get('r_upper_arm').rotation.x=-1.25;
    bones.get('r_forearm').rotation.x=-.7;
   }else if(action==='jump'||action==='fall'){
-   bones.get('l_thigh').rotation.x=.33;bones.get('r_thigh').rotation.x=.33;
-   bones.get('l_shin').rotation.x=-.55;bones.get('r_shin').rotation.x=-.55;
+   for(const side of ['l','r']){
+    bones.get(side+'_thigh').rotation.x+=(.33-bones.get(side+'_thigh').rotation.x)*alpha;
+    bones.get(side+'_shin').rotation.x+=(-.55-bones.get(side+'_shin').rotation.x)*alpha;
+   }
+  }else if(action==='dodge'){
+   bones.get('chest').rotation.x+=(.42-bones.get('chest').rotation.x)*alpha;
+   bones.get('pelvis').rotation.z+=(.18-bones.get('pelvis').rotation.z)*alpha;
+  }else if(action==='land'||action==='heavy_landing'){
+   const drop=action==='heavy_landing'?.16:.07;
+   bones.get('pelvis').position.y+=(1-drop-bones.get('pelvis').position.y)*alpha;
+   bones.get('chest').rotation.x+=(.20-bones.get('chest').rotation.x)*alpha;
   }
  }
  function reset(){phase=0;phaseSpeed=0;for(const [name,rotation] of neutral)bones.get(name).rotation.copy(rotation);}
