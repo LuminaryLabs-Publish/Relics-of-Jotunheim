@@ -47,17 +47,36 @@ test('Pass43 binary is byte-exact with 18 skinned joints and animated elbows/kne
  assert.equal(gltf.accessors[primitive.attributes.POSITION].count,10252);
  assert.equal(gltf.accessors[primitive.indices].count,61500);
 });
-test('both prior fighter GLBs remain usable backups',()=>{
- assert.notEqual(FIGHTER_ASSETS.preferred,FIGHTER_ASSETS.fallback);
- assert.notEqual(FIGHTER_ASSETS.fallback,FIGHTER_ASSETS.experimental);
- assert.equal(readGlb(FIGHTER_ASSETS.preferred).animations.length,16);
- assert.equal(readGlb(FIGHTER_ASSETS.fallback).animations.length,16);
+test('Pass 45 has the preserved 14-bone rig, 16 clips and skinned clothing',()=>{
+ const bytes=readFileSync(new URL('../'+FIGHTER_ASSETS.preferred,import.meta.url));
+ assert.equal(createHash('sha256').update(bytes).digest('hex'),
+  '86cfc66907f9fb546ee5e3cd4c9ae81afcf60a6fe77b9cf1afb5abfe6625f4ed');
+ const gltf=readGlb(FIGHTER_ASSETS.preferred);
+ const old=readGlb(FIGHTER_ASSETS.fallback);
+ assert.equal(gltf.skins[0].joints.length,14);
+ assert.deepEqual(gltf.skins[0].joints.map(i=>gltf.nodes[i].name),
+  old.skins[0].joints.map(i=>old.nodes[i].name));
+ assert.deepEqual(gltf.animations.map(x=>x.name),old.animations.map(x=>x.name));
+ assert.equal(gltf.animations.length,16);
+ const primitives=gltf.meshes[0].primitives;
+ assert.equal(primitives.length,5);
+ for(const primitive of primitives){
+  assert.ok(Number.isInteger(primitive.attributes.JOINTS_0),'unskinned attachment');
+  assert.ok(Number.isInteger(primitive.attributes.WEIGHTS_0),'unweighted attachment');
+  assert.ok(gltf.accessors[primitive.attributes.POSITION].count>0,'empty mesh primitive');
+ }
+ const names=gltf.materials.map(m=>m.name.toLowerCase());
+ assert.ok(names.some(n=>n.includes('tan-skin')),'tan skin material absent');
+ assert.ok(names.some(n=>n.includes('briefs')),'fitted underwear material absent');
+ assert.ok(names.some(n=>n.includes('areola')),'chest detail material absent');
 });
-
-test('default fighter load never selects unapproved Pass 43',()=>{
- assert.deepEqual(fighterLoadOrder(),[FIGHTER_ASSETS.preferred,FIGHTER_ASSETS.fallback]);
+test('previous versions remain available and default load order is safe',()=>{
+ assert.equal(FIGHTER_ASSETS.preferred,'assets/glb/fighter-pass45-tan-anatomy-briefs.glb');
+ assert.deepEqual(fighterLoadOrder(),[FIGHTER_ASSETS.preferred,FIGHTER_ASSETS.fallback,FIGHTER_ASSETS.legacyFallback]);
+ assert.deepEqual(fighterLoadOrder({stable:true}),[FIGHTER_ASSETS.fallback,FIGHTER_ASSETS.legacyFallback]);
  assert.deepEqual(fighterLoadOrder({experimental:true}),[
-  FIGHTER_ASSETS.experimental,FIGHTER_ASSETS.preferred,FIGHTER_ASSETS.fallback
+  FIGHTER_ASSETS.experimental,FIGHTER_ASSETS.preferred,FIGHTER_ASSETS.fallback,FIGHTER_ASSETS.legacyFallback
  ]);
- assert.equal(FIGHTER_ASSETS.preferred,'assets/glb/fighter-anatomical-pass32-REVIEW.glb');
+ assert.equal(readGlb(FIGHTER_ASSETS.fallback).animations.length,16);
+ assert.equal(readGlb(FIGHTER_ASSETS.legacyFallback).animations.length,16);
 });

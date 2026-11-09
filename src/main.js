@@ -74,15 +74,19 @@ const pointer=installPointerLook({canvas:renderer.domElement,documentRef:documen
 const status=hud.querySelector('#roj-status');
 const clipNames=REQUIRED_FIGHTER_CLIPS;
 const loader=new GLTFLoader();
-// Keep the experimental file bundled for opt-in diagnosis, but NEVER select it
-// automatically while its real-WebGL articulation remains unverified.
+// All edition URLs are static so Vite includes each GLB in the Pages bundle.
+// Use ?fighter=pass32 to compare the stable baseline and ?fighter=pass43 for the
+// quarantined four-hinge experiment. Pass 45 is the default feedback edition.
 const fighterSources=new Map([
- [FIGHTER_ASSETS.preferred,{path:FIGHTER_ASSETS.preferred,label:'Pass 32 stable fighter',url:new URL('../assets/glb/fighter-anatomical-pass32-REVIEW.glb',import.meta.url).href}],
- [FIGHTER_ASSETS.fallback,{path:FIGHTER_ASSETS.fallback,label:'v2 fallback',url:new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href}],
+ [FIGHTER_ASSETS.preferred,{path:FIGHTER_ASSETS.preferred,label:'Pass 45 tan anatomy + briefs',url:new URL('../assets/glb/fighter-pass45-tan-anatomy-briefs.glb',import.meta.url).href}],
+ [FIGHTER_ASSETS.fallback,{path:FIGHTER_ASSETS.fallback,label:'Pass 32 fallback',url:new URL('../assets/glb/fighter-anatomical-pass32-REVIEW.glb',import.meta.url).href}],
+ [FIGHTER_ASSETS.legacyFallback,{path:FIGHTER_ASSETS.legacyFallback,label:'v2 fallback',url:new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href}],
  [FIGHTER_ASSETS.experimental,{path:FIGHTER_ASSETS.experimental,label:'Pass 43 experimental',url:new URL('../assets/glb/fighter-pass43-elbow-knee-rig-animated.glb',import.meta.url).href}]
 ]);
-const useExperimental=new URLSearchParams(location.search).get('fighter')==='pass43';
-const fighterCandidates=fighterLoadOrder({experimental:useExperimental}).map(path=>fighterSources.get(path));
+const requestedFighter=new URLSearchParams(location.search).get('fighter');
+const fighterCandidates=fighterLoadOrder({experimental:requestedFighter==='pass43',stable:requestedFighter==='pass32'})
+ .map(path=>fighterSources.get(path));
+
 function loadFighter(index=0){
  const candidate=fighterCandidates[index];
  if(!candidate){status.textContent='No valid fighter GLB available';return;}
@@ -101,6 +105,15 @@ function loadFighter(index=0){
   }
   const missing=clipNames.filter(x=>!loaded.has(x));
   if(missing.length){tryFallback('Missing clips: '+missing.join(', '));return;}
+  // Require an actual skinned humanoid and the known Pass 45 bone hierarchy
+  // before replacing the already visible character; invalid assets fall back.
+  if(candidate.path===FIGHTER_ASSETS.preferred){
+   let skinnedMeshes=0;const bones=new Set();
+   gltf.scene.traverse(o=>{if(o.isSkinnedMesh)skinnedMeshes++;if(o.isBone)bones.add(o.name);});
+   if(!skinnedMeshes||['root','pelvis','spine','chest','neck','head','l_forearm','r_forearm','l_shin','r_shin'].some(name=>!bones.has(name))){
+    tryFallback('Pass 45 skinned anatomy missing');return;
+   }
+  }
   if(candidate.path===FIGHTER_ASSETS.experimental){
    const hinges=new Set();
    gltf.scene.traverse(o=>{if(o.isBone&&['l_elbow','r_elbow','l_knee','r_knee'].includes(o.name))hinges.add(o.name);});

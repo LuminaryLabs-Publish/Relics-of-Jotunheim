@@ -17,3 +17,7 @@ The Pass 43 game screenshot showed a large floating torso, with forearms and leg
 
 ## Remaining acceptance
 Verify actual WebGL full-body presentation in default idle, walk/run, crouch, jump/dodge and all 16 animations from four angles; repeat with Pass 43 opt-in to identify whether a mesh/animation repair is needed. Record an authentic 60-second gameplay capture with the Luminary Development Capture & Publishing Guide. Do not promote experimental Pass 43 or mark anatomical acceptance complete without real rendered evidence. No NexusEngine Core, GLB binaries or GitHub Actions modification in this hotfix.
+
+## Pass 45 follow-up
+
+Pass 45 is a separate anatomy/material feedback edition derived from Pass 32, using the unchanged 14-joint skeleton. It does **not** re-enable the problematic Pass 43 hierarchy. Pass 32 and v2 remain fallbacks, and `?fighter=pass32` explicitly loads the stable edition for comparison. Pass 43 remains experimental and is never an automatic fallback.
