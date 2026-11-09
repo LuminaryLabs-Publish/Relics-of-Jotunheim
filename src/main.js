@@ -6,7 +6,7 @@ import { installPointerLook } from './runtime/pointer-look.js';
 import { createFixedStepper } from './runtime/fixed-step.js';
 import { FIGHTER_ASSETS, REQUIRED_FIGHTER_CLIPS, fighterLoadOrder } from './gameplay/fighter-assets.js';
 import { createHeadLook } from './animation/head-look.js';
-import { createCombatState, playerStrike, enemyStrike } from './gameplay/combat-state.js';
+import { createCombatState, playerStrike, enemyStrike, claimRelic } from './gameplay/combat-state.js';
 import { createCameraState, orbitCamera, zoomCamera, updateCamera, desiredCameraPosition, cameraPose, shoulderTarget, resolveCameraDistance, clamp } from './movement/third-person-camera.js';
 
 // ROJ-0011: NexusEngine owns Actor, Motion and World Contact.
@@ -58,6 +58,13 @@ enemyHealthBack.position.y=2.92;foe.add(enemyHealthBack);
 const enemyHealthFill=new THREE.Mesh(new THREE.PlaneGeometry(1.16,.065),new THREE.MeshBasicMaterial({color:0xc1554c,side:THREE.DoubleSide}));
 enemyHealthFill.position.set(0,2.92,.005);foe.add(enemyHealthFill);
 const foeSpawn=new THREE.Vector3(-5,0,-7);
+const relic=new THREE.Group();scene.add(relic);
+const relicCore=new THREE.Mesh(new THREE.IcosahedronGeometry(.3,1),new THREE.MeshStandardMaterial({
+ color:0xeec56b,metalness:.9,roughness:.18,emissive:0x543a0e,emissiveIntensity:.5
+}));
+relicCore.castShadow=true;relic.add(relicCore);
+const relicHalo=new THREE.Mesh(new THREE.TorusGeometry(.4,.035,8,32),mat('#d4b568'));
+relic.add(relicHalo);relic.visible=false;
 let combat=createCombatState(),strikeFlash=0,receivedFlash=0;
 const motion=createPlayerMotion(engine);
 let state=motion.getState(),character=null,mixer=null,headLook=null;
@@ -168,7 +175,7 @@ function reset(){
  motion.reset();fixed.reset();state=motion.getState();
  attackUntil=0;heavyLandingUntil=0;current='';
  combat=createCombatState();strikeFlash=0;receivedFlash=0;
- foe.position.copy(foeSpawn);foe.visible=true;
+ foe.position.copy(foeSpawn);foe.visible=true;relic.visible=false;
  if(character)character.position.set(0,0,0);
  mixer?.stopAllAction();headLook?.reset();
  // Keep user's preferred yaw/pitch/zoom on restart.
@@ -189,6 +196,10 @@ function frame(){
  const dt=clamp(clock.getDelta(),0,.1),now=performance.now()/1000;
  if(pressed.has('r')){reset();}
  if(pressed.has('v')){cameraState.yaw=state.heading;pressed.delete('v');}
+ if(pressed.has('e')){
+  if(claimRelic(combat,Math.hypot(state.x-relic.position.x,state.z-relic.position.z)))relic.visible=false;
+  pressed.delete('e');
+ }
  if(pressed.has('f')){
   const dx=foe.position.x-state.x,dz=foe.position.z-state.z;
   const range=Math.hypot(dx,dz);
@@ -231,7 +242,12 @@ function frame(){
  enemyHealthBack.quaternion.copy(camera.quaternion);
  enemyHealthFill.quaternion.copy(camera.quaternion);
  foe.visible=combat.enemyHealth>0;
- const combatLabel=combat.result==='victory'?'VICTORY — R to fight again':
+ if(combat.result==='victory'){
+  relic.position.set(foe.position.x,1.0+Math.sin(now*2)*.15,foe.position.z);
+  relic.rotation.y+=dt*1.2;relic.visible=true;
+ }else if(combat.result!=='active')relic.visible=false;
+ const combatLabel=combat.result==='complete'?'RELIC SECURED — R to replay':
+  combat.result==='victory'?'RIVAL DEFEATED — collect relic with E':
   combat.result==='defeat'?'DEFEAT — R to retry':
   'Health '+combat.playerHealth+' / 100 · Rival '+combat.enemyHealth+' / 100'+
   (receivedFlash>0?' · HIT!':strikeFlash>0?' · STRIKE!':'');
