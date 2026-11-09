@@ -1,6 +1,6 @@
 # Relics of Jotunheim
 
-**Development preview** of the NexusEngine-backed third-person game. Current playable test scene: an arena with a rigged, animated fighter, one static dummy, camera-relative locomotion and a fixed visual-only center dot. The full *Hymir's Pursuit* match/scenario, hit damage, opponents, relic gameplay and Quest/Android builds are **not implemented**.
+**Development preview** of the NexusEngine-backed third-person game. Current playable test scene: an arena with a rigged, animated fighter, one training dummy, a simple chasing rival, basic melee damage/blocking, a collectible victory relic, camera-relative locomotion and a fixed visual-only center dot. The full *Hymir's Pursuit* match/scenario, robust combat physics, animation-driven enemy AI, and Quest/Android builds are **not implemented**.
 
 ## ROJ-0011 runtime cutover
 
@@ -11,7 +11,7 @@
 
 ## Controls
 
-Click the game canvas to capture the pointer; press **Esc** to release; **L** toggles pointer lock; right-mouse drag orbits as fallback. **WASD** moves relative to camera, **Shift** sprints, **C** crouches, **Space** jumps, **Alt** dodges, **Q** blocks visually, **F** attacks visually, **R** restarts, **V** recenters orbit and the **wheel** zooms. There is no damage, target lock, enemy AI or match outcome yet.
+Click the game canvas to capture the pointer; press **Esc** to release; **L** toggles pointer lock; right-mouse drag orbits as fallback. **WASD** moves relative to camera, **Shift** sprints, **C** crouches, **Space** jumps, **Alt** dodges, **Q** blocks visually, **F** strikes, **E** collects the relic after victory, **R** restarts, **V** recenters orbit and the **wheel** zooms. F strikes the rival at short range when facing it; Q reduces incoming damage, and E claims the relic after victory. R restarts the encounter. Combat is an early distance-based prototype, not collision-based hit detection or advanced enemy AI.
 
 ## Setup and verification
 
@@ -52,3 +52,9 @@ The reported live-game screenshot after Pass 43 showed a torso-only/jagged chara
 ## ROJ-0006 Pass 45 anatomy feedback build
 
 Pass 45 changes materials, hip contours, fitted underwear and low-relief chest details on the **Pass 32 skeleton**, without reintroducing Pass 43's additional knee/elbow controls. GLB structural tests and 49 CPU-skinned animation samples pass; real Three.js WebGL validation and final anatomical approval are still pending. The game falls back to Pass 32 then v2 if Pass 45 fails to load or lacks its expected rig/clips. See `docs/ROJ-0006-PASS45-STATUS.md`.
+
+## ROJ combat slice (November 9, 2026)
+
+A single chasing rival now supports health, timed proximity attacks, player directional strikes, cooldowns, blocking, victory/defeat and a post-victory relic claim. Core movement and camera files were intentionally left unchanged. Combat rules live in `src/gameplay/combat-state.js` with independent tests in `tests/combat-state.test.mjs`. This is a playable prototype, **not** an approved production combat system: attacks are distance/direction checks rather than skeletal hitboxes, enemy locomotion is a simple pursuer, and visual inspection in an actual WebGL runtime is required.
+
+**Visual debt remains:** Pass 45's distorted face, thin neck, limb joints, hands and feet shown in the November 9 screenshot were not remodelled by this combat milestone. A rig-preserving model/weight repair and GPU animation capture are still mandatory before marking ROJ-0006 complete.
