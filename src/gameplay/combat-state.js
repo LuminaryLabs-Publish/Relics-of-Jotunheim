@@ -6,7 +6,7 @@ export const COMBAT_RULES=Object.freeze({
 });
 export function createCombatState(){
  return {playerHealth:COMBAT_RULES.playerMaxHealth,enemyHealth:COMBAT_RULES.enemyMaxHealth,
-  nextPlayerAttack:0,nextEnemyAttack:0,lastHit:'',result:'active',hits:0};
+  nextPlayerAttack:0,nextEnemyAttack:0,lastHit:'',result:'active',hits:0,relicClaimed:false};
 }
 export function playerStrike(combat,now,distance){
  if(combat.result!=='active'||now<combat.nextPlayerAttack)
@@ -29,4 +29,11 @@ export function enemyStrike(combat,now,distance,blocking=false){
  combat.lastHit='player';
  if(combat.playerHealth===0)combat.result='defeat';
  return {hit:true,damage};
+}
+
+export function claimRelic(combat,distance){
+ if(combat.result!=='victory'||!Number.isFinite(distance)||distance>2.2)return false;
+ combat.relicClaimed=true;
+ combat.result='complete';
+ return true;
 }
