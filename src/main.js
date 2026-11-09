@@ -119,7 +119,7 @@ const requestedFighter=new URLSearchParams(location.search).get('fighter');
 // Default: knee/ankle articulated presentation; ?fighter=pass45/pass32/pass43 compares old GLBs.
 if(!requestedFighter||requestedFighter==='articulated'){
  try{
-  articulated=createArticulatedFighter();
+  articulated=createArticulatedFighter({solveIK:engine.n.twoBoneIk.solveTwoBoneIK});
   if(articulated.jointCount<20)throw new Error('Incomplete anatomical rig');
   character=articulated.scene;scene.add(character);
   headLook=createHeadLook(character);
