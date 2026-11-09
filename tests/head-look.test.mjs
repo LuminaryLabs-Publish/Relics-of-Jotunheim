@@ -11,7 +11,7 @@ class Q{
  multiply(q){const a=this;const [x,y,z,w]=[a.x,a.y,a.z,a.w];return this.copy(new Q(w*q.x+x*q.w+y*q.z-z*q.y,w*q.y-x*q.z+y*q.w+z*q.x,w*q.z+x*q.y-y*q.x+z*q.w,w*q.w-x*q.x-y*q.y-z*q.z));}
 }
 const rig=()=>{const nodes=['chest','neck','head'].map(name=>({name,isBone:true,quaternion:new Q()}));return {nodes,traverse(fn){nodes.forEach(fn)}}};
-test('camera-relative head yaw has correct left/right sign',()=>{near(lookTarget(Math.PI/4,0,0).yaw,-Math.PI/4);near(lookTarget(-Math.PI/4,0,0).yaw,Math.PI/4)});
+test('camera-relative head yaw has correct left/right sign',()=>{near(lookTarget(Math.PI/4,0,0).yaw,Math.PI/4);near(lookTarget(-Math.PI/4,0,0).yaw,-Math.PI/4)});
 test('body yaw is independent from camera yaw',()=>{const s=createState();for(let i=0;i<100;i++)step(s,{cameraYaw:1.2},1/60);near(s.heading,0)});
 test('head yaw and pitch are anatomically clamped',()=>{const a=lookTarget(Math.PI,2,0);near(Math.abs(a.yaw),Math.PI/3);near(a.pitch,-Math.PI/6)});
 test('combat attenuates head tracking',()=>{assert.equal(lookWeight('dodge',true),0);assert.equal(lookWeight('light_attack',true),0);assert.equal(lookWeight('idle',false),0);assert.ok(lookWeight('run',true)<1)});

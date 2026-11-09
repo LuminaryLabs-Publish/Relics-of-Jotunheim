@@ -1,27 +1,28 @@
-# Domain / Service / Kit ownership — ROJ-0001
+# Relics of Jotunheim — Architecture after ROJ-0011
 
-These are **game design responsibility boundaries**, not claims that matching NexusEngine manifests or APIs exist.
+## Runtime ownership
 
-| Domain | Service responsibilities | Future Kit responsibilities |
+| Owner | Responsibility | Source |
 | --- | --- | --- |
-| World | terrain, regions, water, traversal | surfaces, collision, routes |
-| Character | body, locomotion, camera, evasion | movement, focus, dodge |
-| Combat | attacks, defense, hit resolution | melee, hurtboxes, recovery |
-| Relic | ownership, ability, upgrade, mastery | equipment, activation, counterplay |
-| Creature | giant perception/pursuit, serpent exterior/interior | sensing, locomotion, hazard |
-| Match | spawning, survival, pressure, victory | elimination, results |
-| Presentation | materials, visual cues, animation | lighting, VFX, telegraphs |
-| Network | authoritative synchronization | transport and ownership |
-| Runtime | host integration and build | web host, eventual Android XR |
+| NexusEngine Actor | Creature descriptor, Character, Player possession | `src/engine.js` |
+| NexusEngine Simulation / Motion | Native Action Locomotion frame and corrected Motion intent/frame | `src/movement/player-motion.js`, pinned Core |
+| NexusEngine World Contact | Flat preview arena ground contact and correction | `src/movement/contact-motion.js`, `src/movement/arena-surface.js`, pinned Core |
+| Game simulation adapter | Camera-relative input mapping, dodge timer, visual heading and circular arena constraint | `src/movement/player-motion.js` |
+| Browser input | Pointer lock, Esc, right-drag fallback, blur/recovery | `src/runtime/pointer-look.js` |
+| Frame scheduler | Bounded fixed 60 Hz gameplay tick | `src/runtime/fixed-step.js` |
+| Presentation | GLB playback, additive look, camera obstruction, reticle | `src/main.js`, `src/animation/head-look.js`, `src/movement/third-person-camera.js` |
+| Character registry | Canonical active v3 asset and v2 fallback descriptor switch | `src/gameplay/fighter-assets.js` |
 
-Only NexusEngine's documented `createEngine()` runtime lifecycle is integrated by this scaffold. Browser rendering is performed by a Three.js **host adapter**, consistent with the engine's separation of renderer-neutral Core and external providers.
+## Single authority policy
 
-Before adding any Kit, inspect NexusEngine's actual manifests, API discovery and NexusEngine-Kits. Do not invent registration names. Reusable functionality belongs in its existing owner; game-specific compositions stay here.
+The ROJ-0003 movement adapter in `experiments/` is not imported by the live host. Live frames flow through native `advanceActionLocomotion` → native `resolveWorldContact` → native `createLocomotionContactResponse`, with deterministic arena radius correction applied to the same frame and Core Motion receiving that final corrected frame. The world-contact Kit is installed for domain ownership; the integration uses its published **pure deterministic contract functions** to avoid maintaining a second hidden Kit state. Any native codec limitations are documented explicitly in `docs/ROJ-0011-CUTOVER.md`.
+
+The original ROJ-0005 slope/plateau fixture remains isolated for offline tests. In the current live preview the visible arena floor is flat; no invisible slope or unsupported physics terrain is added. The Two-Bone IK Kit is installed but not yet driving feet in the actual GLB; its presence must not be labeled finished foot IK.
 
 ## Not implemented
 
-Physics collision, authored terrain, fighter gameplay, giant AI, serpent anatomy, relics, multiplayer, native Quest runtime, and production media.
+Authoritative hits/damage/block defense, giant/serpent AI, relics, multiplayer, full scenario simulation, Quest runtime, rendered foot IK and production media. The static dummy and F/Q animations are **visual preview only**. Historical evidence docs refer to older revisions; the cutover ledger documents current status and limitations.
 
-## Pin
+## Scope and reproducibility
 
-NexusEngine: `c674a53e054640f5acc035180a2f3fe1d7d4fe03` (main observed 2026-11-06). Install and integration must be tested independently.
+NexusEngine stays pinned to `c674a53e054640f5acc035180a2f3fe1d7d4fe03`. The project does not modify Core, other repositories or GitHub Actions. Browser capture follows the [Luminary Development Capture & Publishing Guide](https://docs.google.com/document/d/1_VPgdUR1BQQA_UFzIKPI75625U6eFUkNV5SEBGNqipU/edit).

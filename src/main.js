@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { createGameEngine } from './engine.js';
-import { createState, step, config } from '../experiments/roj-0003/movement.js';
+import { createGameEngine, setFighterAsset } from './engine.js';
+import { createPlayerMotion } from './movement/player-motion.js';
+import { installPointerLook } from './runtime/pointer-look.js';
+import { createFixedStepper } from './runtime/fixed-step.js';
+import { FIGHTER_ASSETS, REQUIRED_FIGHTER_CLIPS } from './gameplay/fighter-assets.js';
 import { createHeadLook } from './animation/head-look.js';
 import { createCameraState, orbitCamera, zoomCamera, updateCamera, desiredCameraPosition, cameraPose, shoulderTarget, resolveCameraDistance, clamp } from './movement/third-person-camera.js';
 
-// ROJ-0007: NexusEngine owns Actor/Creature/Player composition; this browser
-// adapter retains ROJ-0003 movement until ROJ-0005 Motion/Contact is integrated.
+// ROJ-0011: NexusEngine owns Actor, Motion and World Contact.
+// Three.js renders only the contact-corrected authoritative locomotion state.
 const engine=createGameEngine(),host=document.getElementById('app');
 const scene=new THREE.Scene();scene.background=new THREE.Color('#667d86');
 scene.fog=new THREE.Fog('#667d86',26,90);
@@ -33,77 +36,47 @@ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.16,.21,2.1,8),mat('#85664b
 const head=new THREE.Mesh(new THREE.SphereGeometry(.38,12,8),mat('#bba47d'));head.position.y=2.3;head.castShadow=true;dummy.add(head);
 const arms=new THREE.Mesh(new THREE.BoxGeometry(1.25,.14,.16),mat('#85664b'));arms.position.y=1.45;dummy.add(arms);
 
-let state=createState(),character=null,mixer=null,headLook=null,actions=new Map(),current='',actionUntil=0,health=100;
-const keys=new Set(),pressed=new Set();
+const motion=createPlayerMotion(engine);
+let state=motion.getState(),character=null,mixer=null,headLook=null;
+let actions=new Map(),current='',attackUntil=0,heavyLandingUntil=0,activeFighterVersion='loading';
+const keys=new Set(),pressed=new Set(),fixed=createFixedStepper();
 const cameraState=createCameraState(),cameraRay=new THREE.Raycaster();
 const focusVec=new THREE.Vector3(),wishVec=new THREE.Vector3(),rayDirection=new THREE.Vector3();
-let orbitDragging=false,lastPointerX=0,lastPointerY=0;
-let freeLookLocked=false;
-let pointerLockError='';
-function releaseInput(){keys.clear();pressed.clear();orbitDragging=false;}
-// L toggles free mouse-look. Escape exits pointer lock natively; right-drag
-// remains available without pointer lock (including in embedded browsers).
-document.addEventListener('pointerlockchange',()=>{
- freeLookLocked=document.pointerLockElement===renderer.domElement;orbitDragging=false;
- renderer.domElement.style.cursor=freeLookLocked?'none':'auto';
- if(!freeLookLocked)releaseInput();
- updatePointerPrompt();
-});
-document.addEventListener('pointerlockerror',()=>{pointerLockError='Mouse capture unavailable. Right-drag to look.';updatePointerPrompt();});
-function requestGamePointerLock(){
- if(document.pointerLockElement===renderer.domElement)return;
- try{const pending=renderer.domElement.requestPointerLock?.();pending?.catch?.(()=>{pointerLockError='Mouse capture denied. Right-drag to look.';updatePointerPrompt();});}
- catch{pointerLockError='Mouse capture unavailable. Right-drag to look.';updatePointerPrompt();}
-}
-
-document.addEventListener('mousemove',e=>{if(freeLookLocked)orbitCamera(cameraState,e.movementX,e.movementY);});
+function releaseInput(){keys.clear();pressed.clear();fixed.reset();}
 addEventListener('keydown',e=>{
+ if(e.repeat)return;
  const k=e.key.toLowerCase();
  if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();
- if(!keys.has(k))pressed.add(k);keys.add(k);
+ if(!keys.has(k))pressed.add(k);
+ keys.add(k);
 });
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
-addEventListener('blur',()=>{releaseInput();if(freeLookLocked)document.exitPointerLock?.();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){releaseInput();if(freeLookLocked)document.exitPointerLock?.();}});
-renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
-renderer.domElement.addEventListener('click',e=>{if(e.button===0&&!freeLookLocked)requestGamePointerLock();});
-renderer.domElement.addEventListener('pointerdown',e=>{
- if(e.button!==2||freeLookLocked)return;
- e.preventDefault();orbitDragging=true;lastPointerX=e.clientX;lastPointerY=e.clientY;
- try{renderer.domElement.setPointerCapture(e.pointerId);}catch{}
-});
-renderer.domElement.addEventListener('pointermove',e=>{
- if(!orbitDragging||freeLookLocked)return;
- if(!(e.buttons&2)){orbitDragging=false;return;}
- orbitCamera(cameraState,e.clientX-lastPointerX,e.clientY-lastPointerY);
- lastPointerX=e.clientX;lastPointerY=e.clientY;
-});
-renderer.domElement.addEventListener('pointerup',e=>{if(e.button===2)orbitDragging=false;});
-renderer.domElement.addEventListener('pointercancel',()=>{orbitDragging=false;});
-renderer.domElement.addEventListener('lostpointercapture',()=>{orbitDragging=false;});
-renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();zoomCamera(cameraState,e.deltaY);},{passive:false});
+renderer.domElement.addEventListener('wheel',e=>{
+ e.preventDefault();zoomCamera(cameraState,e.deltaY);
+},{passive:false});
 
+// The reticle is visual only; it never captures mouse or changes hit logic.
 const reticle=document.createElement('div');
-reticle.id='roj-center-reticle';
-reticle.setAttribute('aria-hidden','true');
+reticle.id='roj-center-reticle';reticle.setAttribute('aria-hidden','true');
 reticle.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:#fff;pointer-events:none;z-index:5';
 host.appendChild(reticle);
 const hud=document.createElement('div');
 hud.style.cssText='position:fixed;left:18px;top:18px;max-width:440px;color:#f3e9d8;background:#111c22dd;border-left:3px solid #b68e57;padding:14px 18px;font:13px/1.55 system-ui;pointer-events:none';
-hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0010 · Right-shoulder camera &amp; center dot</div><div>Click game to lock mouse · Esc release · L toggle · Right-drag fallback · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor registry: NexusEngine · Motion: ROJ-0003 compatibility adapter</small>';
+hud.innerHTML='<strong style="font-size:18px">RELICS OF JOTUNHEIM</strong><div>ROJ-0011 · Unified motion / camera preview</div><div>Click game to lock mouse · Esc release · L toggle · Right-drag fallback · Wheel zoom · V recenter</div><div>Shift sprint · C crouch · Space jump · Alt dodge</div><div>Q block · F attack (visual) · R restart</div><div id="roj-status">Loading NexusEngine-authored fighter…</div><small>Actor / Motion / World Contact: NexusEngine · Combat: animation preview</small>';
 host.appendChild(hud);
 const pointerPrompt=document.createElement('div');
 pointerPrompt.id='roj-pointer-prompt';
 pointerPrompt.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 16px;background:#101b23e8;color:#f3e9d8;border:1px solid #b68e57;border-radius:6px;font:14px system-ui;pointer-events:none;text-align:center';
 host.appendChild(pointerPrompt);
-function updatePointerPrompt(){pointerPrompt.textContent=freeLookLocked?'Mouse captured · Esc to release':(pointerLockError||'Click gameplay to capture mouse · Esc releases · Right-drag fallback');}
-updatePointerPrompt();
+const pointer=installPointerLook({canvas:renderer.domElement,documentRef:document,windowRef:window,
+ onOrbit:(dx,dy)=>orbitCamera(cameraState,dx,dy),onRelease:releaseInput,
+ onStatus:({locked,message})=>{pointerPrompt.textContent=message;pointerPrompt.style.opacity=locked?'.6':'1';}});
 const status=hud.querySelector('#roj-status');
-const clipNames=['walk','idle','run','jump','land','dodge','crouch_idle','crouch_walk','strafe_left','strafe_right','backward_walk','sprint','fall','heavy_landing','block','light_attack'];
+const clipNames=REQUIRED_FIGHTER_CLIPS;
 const loader=new GLTFLoader();
+// Static new URL strings ensure Vite includes both authored binary assets.
 const fighterV3Url=new URL('../assets/glb/fighter-anatomical-pass32-REVIEW.glb',import.meta.url).href;
 const fighterV2Url=new URL('../assets/glb/fighter-rigged-v2.glb',import.meta.url).href;
-let activeFighterVersion='loading';
 function loadFighter(url,isV3){
  loader.load(url,gltf=>{
   const loaded=new Map();
@@ -117,10 +90,13 @@ function loadFighter(url,isV3){
    if(isV3){loadFighter(fighterV2Url,false);return;}
    status.textContent='Missing animation clips: '+missing.join(', ');return;
   }
+  if(character){scene.remove(character);mixer?.stopAllAction();}
   character=gltf.scene;
   character.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-  scene.add(character);mixer=new THREE.AnimationMixer(character);headLook=createHeadLook(character);actions=new Map();
+  scene.add(character);mixer=new THREE.AnimationMixer(character);
+  headLook=createHeadLook(character);actions=new Map();current='';
   for(const [label,clip] of loaded)actions.set(label,mixer.clipAction(clip));
+  setFighterAsset(engine,isV3?FIGHTER_ASSETS.preferred:FIGHTER_ASSETS.fallback);
   activeFighterVersion=isV3?'v3 feedback':'v2 fallback';
   status.textContent=activeFighterVersion+' · 16 animations loaded';
  },undefined,error=>{
@@ -140,11 +116,12 @@ function animate(name){
 }
 const clock=new THREE.Clock();
 function reset(){
- state=createState();actionUntil=0;health=100;current='';
+ motion.reset();fixed.reset();state=motion.getState();
+ attackUntil=0;heavyLandingUntil=0;current='';
  if(character)character.position.set(0,0,0);
- if(mixer)mixer.stopAllAction();headLook?.reset();
- // Keep camera yaw, pitch and distance on reset so the player's chosen view persists.
- releaseInput();
+ mixer?.stopAllAction();headLook?.reset();
+ // Keep user's preferred yaw/pitch/zoom on restart.
+ keys.clear();pressed.clear();
 }
 function collisionCameraDistance(){
  const aim=shoulderTarget(cameraState,cameraState.focus);
@@ -153,54 +130,49 @@ function collisionCameraDistance(){
  wishVec.set(wish.x,wish.y,wish.z);rayDirection.copy(wishVec).sub(focusVec);
  const length=rayDirection.length();if(length<.001)return cameraState.distance;
  cameraRay.set(focusVec,rayDirection.multiplyScalar(1/length));cameraRay.near=.1;cameraRay.far=length;
- // World objects are currently the only camera occluders; do not raycast the fighter.
  const hits=cameraRay.intersectObjects([stones,dummy],true);
  return hits.length?Math.max(.8,hits[0].distance-cameraState.collisionPadding):cameraState.distance;
 }
 function frame(){
  requestAnimationFrame(frame);
- const dt=Math.min(clock.getDelta(),.04),now=performance.now()/1000;
- if(pressed.has('r'))reset();
- if(pressed.has('v'))cameraState.yaw=state.heading;
- if(pressed.has('l')){
-  if(freeLookLocked)document.exitPointerLock?.();
-  else requestGamePointerLock();
- }
+ const dt=clamp(clock.getDelta(),0,.1),now=performance.now()/1000;
+ if(pressed.has('r')){reset();}
+ if(pressed.has('v')){cameraState.yaw=state.heading;pressed.delete('v');}
+ if(pressed.has('f')){attackUntil=now+.48;pressed.delete('f');}
  const crouch=keys.has('c'),sprint=keys.has('shift')&&!crouch;
  const input={forward:keys.has('w'),backward:keys.has('s'),left:keys.has('a'),right:keys.has('d'),
-  sprint,cameraYaw:cameraState.yaw,jumpPressed:pressed.has(' '),dodgePressed:pressed.has('alt'),
-  lockFacing:keys.has('q')||pressed.has('f')||(current==='light_attack'&&now<actionUntil)};
- const speedLimit=crouch?{...config,walk:1.65,run:1.65}:config;
- const wasAir=!state.grounded,previousVy=state.vy;
- step(state,input,dt,speedLimit);
- const radius=Math.hypot(state.x,state.z);
- if(radius>17.5){const k=17.5/radius;state.x*=k;state.z*=k;state.vx*=.3;state.vz*=.3;}
- if(wasAir&&state.grounded&&previousVy<-6)actionUntil=Math.max(actionUntil,now+.34);
+  sprint,crouch,cameraYaw:cameraState.yaw,lockFacing:keys.has('q')||now<attackUntil};
+ let wasHeavyLanding=false;
+ const {steps}=fixed.advance(dt,stepDt=>{
+  const before=state;
+  state=motion.tick({...input,jumpPressed:pressed.has(' '),dodgePressed:pressed.has('alt')},stepDt);
+  if(!before.grounded&&state.grounded&&before.vy<-6)wasHeavyLanding=true;
+  pressed.delete(' ');pressed.delete('alt');
+  engine.tick(stepDt);
+ });
+ if(wasHeavyLanding)heavyLandingUntil=now+.34;
+ // If <1/60s elapsed, keep jump/dodge edges queued until simulation advances.
+ if(steps>0){pressed.clear();}
  let desired='idle';
- if(pressed.has('f')){desired='light_attack';actionUntil=now+.48;}
+ if(now<attackUntil)desired='light_attack';
  else if(keys.has('q'))desired='block';
  else if(state.dodgeRemaining>0)desired='dodge';
  else if(!state.grounded)desired=state.vy<0?'fall':'jump';
- else if(wasAir&&previousVy<-6)desired='heavy_landing';
+ else if(now<heavyLandingUntil)desired='heavy_landing';
  else if(state.landingRemaining>0)desired='land';
- else if(crouch)desired=(Math.hypot(state.vx,state.vz)>.25?'crouch_walk':'crouch_idle');
+ else if(crouch)desired=Math.hypot(state.vx,state.vz)>.25?'crouch_walk':'crouch_idle';
  else if(sprint&&Math.hypot(state.vx,state.vz)>4)desired='sprint';
- // Free-movement actor faces travel, so legacy backward/strafe clips are not
- // selected from keys alone. Directional animation is reserved for target lock.
  else desired=state.animation;
- if(now<actionUntil&&current==='light_attack')desired='light_attack';
  animate(desired);
  if(character){
   character.position.set(state.x,state.y,state.z);
-  // The active v3 GLB has local -Z forward (toe geometry projects toward -Z).
-  // Its authored skeleton and animation root are left untouched.
   character.rotation.y=state.heading;
  }
  headLook?.beforeAnimation();
- if(mixer)mixer.update(dt);
- headLook?.afterAnimation({cameraYaw:cameraState.yaw,cameraPitch:cameraState.pitch,bodyHeading:state.heading,action:desired,locked:freeLookLocked||orbitDragging,dt});
+ mixer?.update(dt);
+ headLook?.afterAnimation({cameraYaw:cameraState.yaw,cameraPitch:cameraState.pitch,
+  bodyHeading:state.heading,action:desired,locked:pointer.locked||pointer.dragging,dt});
  updateCamera(cameraState,state,dt);
- // Solve occlusion after smoothing the follow focus, not from a fixed world offset.
  const distance=resolveCameraDistance(cameraState,collisionCameraDistance(),dt);
  if(distance<cameraState.distance){
   const limited=desiredCameraPosition(cameraState,cameraState.focus,distance);
@@ -209,8 +181,14 @@ function frame(){
  const pose=cameraPose(cameraState);
  camera.position.set(pose.position.x,pose.position.y,pose.position.z);
  camera.lookAt(pose.target.x,pose.target.y,pose.target.z);
- if(character)status.textContent='Model: '+activeFighterVersion+' · Action: '+desired+' · Clips: '+actions.size+' · Grounded: '+state.grounded+' · Head: '+(headLook?'tracked':'camera only');
- pressed.clear();engine.tick(dt);renderer.render(scene,camera);
+ if(character){
+  const label='Model: '+activeFighterVersion+' · Action: '+desired+' · Clips: '+actions.size+
+   ' · Grounded: '+state.grounded+' · Head: '+(headLook?'tracked':'camera only');
+  if(status.textContent!==label)status.textContent=label;
+ }
+ renderer.render(scene,camera);
 }
 frame();
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);
+});

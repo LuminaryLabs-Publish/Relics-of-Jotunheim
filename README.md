@@ -1,41 +1,46 @@
 # Relics of Jotunheim
 
-NexusEngine game project. First scenario: **Hymir's Pursuit**.
+**Development preview** of the NexusEngine-backed third-person game. Current playable test scene: an arena with a rigged, animated fighter, one static dummy, camera-relative locomotion and a fixed visual-only center dot. The full *Hymir's Pursuit* match/scenario, hit damage, opponents, relic gameplay and Quest/Android builds are **not implemented**.
 
-## ROJ-0001 — initialization
+## ROJ-0011 runtime cutover
 
-This scaffold uses NexusEngine for the runtime lifecycle and the browser Three.js host for a **temporary visual smoke scene**. The visible ground, capsule and camera are not authored production assets, and no combat, collision, Quest, network or relic gameplay is implemented.
+- **NexusEngine:** Creature/Character/Player registration and possession; native Action Locomotion, World Contact and Locomotion Contact Response contracts; corrected frames published to Core Motion. Two-Bone IK Kit is installed but gameplay foot planting/IK deformation is still future work.
+- **Game:** `src/movement/player-motion.js` is the only production locomotion state owner. `experiments/roj-0003/movement.js` remains test/historical code, **not** part of the live game. ROJ-0005's terrain slope fixture is not live arena geometry.
+- **Presentation:** Three.js renders the active Pass 32 anatomical GLB with 16 clips and v2 fallback. The NexusEngine creature descriptor is switched to the actually loaded GLB. Additive head/neck/chest rotations follow camera look in the character's local coordinate system; movement and camera headings are independent.
+- **Runtime:** a bounded 60-Hz fixed-step simulation, browser pointer lock requested synchronously from click/L, right-mouse fallback, over-right-shoulder orbit, basic camera obstruction and a 6px visual-only center reticle.
 
-## Start
+## Controls
 
-Requires Node.js 20+ and Git.
+Click the game canvas to capture the pointer; press **Esc** to release; **L** toggles pointer lock; right-mouse drag orbits as fallback. **WASD** moves relative to camera, **Shift** sprints, **C** crouches, **Space** jumps, **Alt** dodges, **Q** blocks visually, **F** attacks visually, **R** restarts, **V** recenters orbit and the **wheel** zooms. There is no damage, target lock, enemy AI or match outcome yet.
 
-```sh
-npm install
-npm run dev
-```
+## Setup and verification
 
-Open the local URL printed by Vite. A grey ground plane and a placeholder fighter should be visible. Use WASD to move the *visual placeholder*; this is not the authoritative character simulation.
+Requires **Node.js 22** (the GitHub deploy runner uses Node 22), Git and a browser capable of WebGL.
+
+The engine is pinned to `LuminaryLabs-Dev/NexusEngine@c674a53e054640f5acc035180a2f3fe1d7d4fe03`. That revision contains a duplicate Authoring manifest entry; the existing deploy job applies a **temporary local checkout compatibility workaround**, without changing Core. A plain unpatched `npm install` may therefore fail until that pin's issue is fixed upstream. Use the pinned checkout and same temporary manifest remediation as `.github/workflows/deploy.yml` for reproducible local testing. This is technical debt, not a clean-install guarantee.
 
 ```sh
 npm run check
 npm run build
+npm run preview
 ```
 
-`check` runs source and configuration smoke checks; `build` bundles the web host. A successful build is **not** Quest/Android XR validation.
+For *actual* 3D browser capture on a WebGL-capable machine, install Chromium and run the existing Luminary-compatible recording script:
 
-## Ownership
+```sh
+npx playwright install chromium
+npm run verify:browser
+```
 
-- **NexusEngine Core**: lifecycle and universal engine contracts, installed from the pinned upstream commit.
-- **Browser host**: Three.js viewport, browser input and rendering; this is an adapter, not a new Core domain.
-- **Game**: scenario definition and game-specific composition. Future domain/service/kit work must use real NexusEngine manifests rather than inventing engine registrations.
+The browser verifier captures the real running build at `http://127.0.0.1:4173/`, saves raw WebM and stills, then encodes a 60-second MP4 using `ffmpeg`/`ffprobe` (install both). A passing Node suite/build is **not** evidence of rendered visual quality, native Escape behavior or a complete match.
 
-## Canonical records
+## Status and ownership
 
-- [GitHub repository](https://github.com/LuminaryLabs-Publish/Relics-of-Jotunheim)
-- [Existing Drive workspace](https://drive.google.com/drive/folders/1stHZcwuENEC-A18Udu0ee6WQzJT26PM8)
-- [Existing task tracker](https://docs.google.com/spreadsheets/d/1T-XUfn5WbRJmhLeg5fzbufkMC5ucnVanFigj7vJFLIo/edit)
+Read [`docs/ROJ-0011-CUTOVER.md`](docs/ROJ-0011-CUTOVER.md) for the truth matrix, verification limits and remaining acceptance gates. Older ROJ status documents preserve historical snapshots and are not the current source of runtime behavior.
 
-## Status
+- [Game repository](https://github.com/LuminaryLabs-Publish/Relics-of-Jotunheim)
+- [Live Pages preview](https://luminarylabs-publish.github.io/Relics-of-Jotunheim/)
+- [Task tracker](https://docs.google.com/spreadsheets/d/1T-XUfn5WbRJmhLeg5fzbufkMC5ucnVanFigj7vJFLIo/edit)
+- [Development Capture & Publishing Guide](https://docs.google.com/document/d/1_VPgdUR1BQQA_UFzIKPI75625U6eFUkNV5SEBGNqipU/edit)
 
-ROJ-0001 source scaffold committed; clean dependency install, browser render, build, and hardware execution require independent validation. No public release authorized.
+No public gameplay launch or production release is claimed by this development cutover.

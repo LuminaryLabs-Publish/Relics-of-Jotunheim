@@ -3,8 +3,9 @@ import { clamp, wrapAngle, smoothFactor } from '../movement/third-person-camera.
 
 export const LOOK_LIMITS=Object.freeze({yaw:Math.PI/3,pitch:Math.PI/6,rate:9});
 export function lookTarget(cameraYaw,cameraPitch,bodyHeading,limits=LOOK_LIMITS){
-  // Three.js: local -Z forward; +Y rotation points left, whereas +camera yaw looks right.
-  const relative=wrapAngle(-cameraYaw-bodyHeading);
+  // Both camera yaw and body heading use the same horizontal world convention.
+  // Subtract their orientations; aligned view and body must produce zero look.
+  const relative=wrapAngle(cameraYaw-bodyHeading);
   return {yaw:clamp(relative,-limits.yaw,limits.yaw),pitch:clamp(-cameraPitch,-limits.pitch,limits.pitch)};
 }
 export function lookWeight(action,locked){
