@@ -53,8 +53,8 @@ test('body proportions, face features, and bilateral extremities exist',()=>{
  for(const bone of ["side+'_hand'","side+'_foot'"])
   assert.ok(source.includes(bone));
 });
-test('live articulated fighter preserves animation and receives anatomical profiles',()=>{
+test('live articulated fighter consumes the shared welded anatomical source',()=>{
  for(const name of ['createArticulatedFighter','solveLeg','gaitTargets','new THREE.SkinnedMesh',
-  'loft([[0,.94,0,.248,.158]','attach(side+\'_foot\''])
+  'createAnatomicalSurface','createAnatomicalPose','skinWeight','skinIndex'])
   assert.ok(runtime.includes(name),'Missing live rig/profile '+name);
 });
