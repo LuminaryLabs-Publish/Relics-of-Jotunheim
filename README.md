@@ -66,3 +66,13 @@ The default character presentation now uses `src/animation/articulated-fighter.j
 **Comparison:** `?fighter=pass45` loads the prior source GLB; `?fighter=pass32` loads the previous stable fallback; `?fighter=pass43` loads the quarantined hinge experiment; the default/no query uses the articulated preview. If new procedural rig construction fails, the game attempts the existing Pass 45/32/v2 GLB fallbacks. The original authored GLB files remain unchanged.
 
 **Limitations:** This is a runtime procedural **presentation prototype**, not a new Blender/Nexus Authoring-exported GLB. The 16 retained animations still belong to the legacy GLB path; procedural movement uses custom poses, not 16 retargeted animation clips. Foot targets use the level arena and do not yet account for uneven collision geometry, obstacles, or full planted-foot world locks. Skin/face quality and walking need a real GPU browser capture and human review. The NexusEngine player locomotion state, game combat, camera and pointer-lock paths have not been replaced.
+
+## Anatomical Authoring edition (ROJ character overhaul)
+
+The live procedural fighter now has sculpted shoulder/waist/pelvis contours, a better-defined jaw and nose, tapered limbs, improved foot profiles, and articulated toes. The existing model source, older GLB assets, and game controller remain intact.
+
+A separate editable **NexusEngine Authoring** edition is provided by `scripts/author-anatomical-fighter.mjs`. It uses native `mesh.create`, `rig.set`, `skin.bind`, `skin.weights`, `animation.set`, `assembly.set`, `authoringValidation.project`, `authoringExport.export`, and `authoringImport.import`. The closed organic mesh is weighted to an 18-bone rig and retains 16 existing gameplay clips.
+
+Run `npm run author:anatomical` using the pinned engine dependencies. It writes a new GLB and canonical receipts under `artifacts/roj-anatomical/`, without replacing existing fighter GLBs. **The native export and a real WebGL anatomy/playback review remain unverified until that command runs successfully.** Static geometry construction checks cover manifold winding, normalized skin weights, and physically bounded proportions. Do not describe the authored GLB as generated or the anatomy as artist-approved until those checks pass.
+
+The main-game articulated model remains the safe immediate visual preview; integrate the new authored GLB into the asset fallback chain only after an independently reviewed export. ROJ-0017 parallel modeling work and all existing animation assets remain preserved.

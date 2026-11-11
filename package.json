@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "check": "node --test tests/*.test.mjs experiments/roj-0003/movement.test.mjs",
-    "verify:browser": "node scripts/verify-browser.mjs"
+    "verify:browser": "node scripts/verify-browser.mjs",
+    "author:anatomical": "node scripts/author-anatomical-fighter.mjs"
   },
   "dependencies": {
     "nexusengine": "github:LuminaryLabs-Dev/NexusEngine#c674a53e054640f5acc035180a2f3fe1d7d4fe03",

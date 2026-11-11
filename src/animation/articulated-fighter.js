@@ -84,21 +84,24 @@ export function createArticulatedFighter({solveIK}={}){
  const id=name=>all.indexOf(bones.get(name));
  const blend=(a,b,t)=>[[id(a),1-t],[id(b),t]];
  const fixed=name=>[[id(name),1]];
- loft([[0,1.02,0,.28,.19],[0,1.10,0,.27,.18],[0,1.23,0,.25,.17],[0,1.38,0,.32,.19],
-  [0,1.51,0,.39,.22],[0,1.64,0,.39,.21],[0,1.72,0,.30,.17],[0,1.79,0,.17,.12]],skin,
-  y=>y<1.19?fixed('pelvis'):y<1.37?blend('pelvis','spine',(y-1.19)/.18):
-  y<1.55?blend('spine','chest',(y-1.37)/.18):fixed('chest'));
- loft([[0,.90,0,.27,.17],[0,.99,0,.30,.19],[0,1.09,0,.28,.19],[0,1.16,0,.26,.175]],cloth,()=>fixed('pelvis'));
+ // Nexus Authoring anatomical silhouette: pelvis, waist, ribcage and trapezius.
+ loft([[0,.94,0,.248,.158],[0,1.03,0,.293,.176],[0,1.14,0,.288,.175],
+  [0,1.26,0,.255,.160],[0,1.37,0,.275,.170],[0,1.48,0,.326,.195],
+  [0,1.60,0,.388,.218],[0,1.70,0,.365,.201],[0,1.79,0,.175,.125]],skin,
+  y=>y<1.13?fixed('pelvis'):y<1.3?blend('pelvis','spine',(y-1.13)/.17):
+  y<1.57?blend('spine','chest',(y-1.30)/.27):fixed('chest'));
+ loft([[0,.89,0,.258,.163],[0,.96,0,.299,.178],[0,1.045,0,.291,.175],
+  [0,1.115,0,.278,.163]],cloth,()=>fixed('pelvis'));
  for(const side of ['l','r']){
   const sign=side==='l'?1:-1,x=sign*.19,ax=sign*.41;
-  loft([[x,.12,0,.092,.095],[x,.19,0,.095,.093],[x,.32,0,.115,.11],
-   [x,.43,0,.12,.12],[x,.49,0,.125,.12],[x,.54,0,.135,.125],
-   [x,.68,0,.17,.15],[x,.82,0,.19,.165],[x,.95,0,.165,.16]],skin,
+  loft([[x,.10,0,.084,.088],[x,.19,0,.092,.094],[x,.32,0,.112,.110],
+   [x,.43,0,.121,.118],[x,.49,0,.126,.125],[x,.54,0,.139,.132],
+   [x,.68,0,.174,.153],[x,.82,0,.188,.167],[x,.95,0,.157,.149]],skin,
    y=>y<.45?fixed(side+'_shin'):y<.56?
     blend(side+'_shin',side+'_thigh',(y-.45)/.11):fixed(side+'_thigh'));
-  loft([[ax,.80,0,.076,.084],[ax,.88,0,.085,.09],[ax,1.03,0,.105,.105],
-   [ax,1.18,0,.12,.12],[ax,1.23,0,.123,.12],[ax,1.29,0,.128,.13],
-   [ax,1.43,0,.155,.15],[ax,1.57,0,.17,.16],[ax,1.68,0,.17,.155]],skin,
+  loft([[ax,.80,0,.062,.066],[ax,.88,0,.075,.076],[ax,1.03,0,.096,.102],
+   [ax,1.18,0,.115,.112],[ax,1.23,0,.128,.119],[ax,1.29,0,.126,.129],
+   [ax,1.43,0,.145,.143],[ax,1.57,0,.157,.150],[ax,1.68,0,.124,.132]],skin,
    y=>y<1.19?fixed(side+'_forearm'):y<1.31?
     blend(side+'_forearm',side+'_upper_arm',(y-1.19)/.12):fixed(side+'_upper_arm'));
  }
@@ -108,21 +111,26 @@ export function createArticulatedFighter({solveIK}={}){
   bones.get(parent).add(m);return m;
  };
  attach('neck',new THREE.SphereGeometry(.104,16,12),skin,[0,.07,0],[1,1.6,.85]);
- attach('head',new THREE.SphereGeometry(.205,28,20),skin,[0,.06,0],[.89,1.16,.93]);
- attach('head',new THREE.SphereGeometry(.074,12,10),skin,[0,.015,-.185],[.68,1.05,1.03]);
+ attach('head',new THREE.SphereGeometry(.205,32,24),skin,[0,.075,-.005],[1,1.27,.91]);
+ attach('head',new THREE.SphereGeometry(.155,22,16),skin,[0,-.07,-.07],[1,.7,.86]);
+ attach('head',new THREE.SphereGeometry(.063,18,14),skin,[0,.032,-.177],[.83,1.12,.85]);
+ attach('head',new THREE.SphereGeometry(.068,16,12),skin,[0,-.023,-.232],[1,.44,.81]);
  for(const s of [-1,1]){
   attach('head',new THREE.SphereGeometry(.047,12,10),skin,[s*.094,.073,-.153],[1.15,.6,.53]);
   attach('head',new THREE.SphereGeometry(.018,12,10),eye,[s*.092,.079,-.181]);
   attach('head',new THREE.SphereGeometry(.058,12,10),skin,[s*.188,-.005,0],[.5,.9,.8]);
  }
- attach('head',new THREE.SphereGeometry(.07,16,8),lip,[0,-.085,-.15],[.94,.12,.26]);
- attach('head',new THREE.SphereGeometry(.19,20,12),hair,[0,.214,.035],[.93,.26,.91]);
+ attach('head',new THREE.SphereGeometry(.086,20,10),lip,[0,-.066,-.174],[1,.18,.52]);
+ attach('head',new THREE.SphereGeometry(.205,24,14),hair,[0,.272,.026],[.98,.33,.91]);
  for(const side of ['l','r']){
   attach(side+'_hand',new THREE.SphereGeometry(.082,14,10),skin,[0,-.08,-.008],[.86,1.38,.65]);
   for(let f=0;f<4;f++)
    attach(side+'_hand',new THREE.CapsuleGeometry(.014,.07,3,6),skin,
     [(f-1.5)*.032,-.167,-.021]);
-  attach(side+'_foot',new THREE.SphereGeometry(.118,16,12),skin,[0,-.055,-.125],[1.02,.54,1.9]);
+  attach(side+'_foot',new THREE.SphereGeometry(.124,20,14),skin,[0,-.055,-.142],[1.01,.73,1.93]);
+  for(let toe=0;toe<5;toe++)
+   attach(side+'_foot',new THREE.SphereGeometry(.024,10,8),skin,
+    [(toe-2)*.042,-.079,-.335],[1.05,1.22,2.3]);
  }
  // The actor faces negative Z; all gait joints are named for runtime look and IK.
  let phase=0,phaseSpeed=0;
