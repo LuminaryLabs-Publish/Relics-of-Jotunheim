@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createArticulatedFighter,gaitTargets,solveLeg} from '../src/animation/articulated-fighter.js';
+import {createAnatomicalSurface} from '../src/animation/anatomical-surface.js';
 
-test('articulated fighter creates a valid 22-joint skinned humanoid',()=>{
- const fighter=createArticulatedFighter();
+test('articulated fighter creates one valid 22-joint skinned humanoid',()=>{
+ const fighter=createArticulatedFighter(),source=createAnatomicalSurface();
  assert.equal(fighter.jointCount,22);
  for(const side of ['l','r'])
   for(const joint of ['thigh','shin','foot','toe','upper_arm','forearm','wrist','hand'])
@@ -12,11 +13,21 @@ test('articulated fighter creates a valid 22-joint skinned humanoid',()=>{
  fighter.scene.traverse(object=>{
   if(!object.isSkinnedMesh)return;
   skinned++;
+  assert.equal(object,fighter.mesh,'The exposed body must be the rendered skin');
+  assert.equal(object.name,'ROJ_ContinuousSkin');
+  assert.equal(object.skeleton,fighter.skeleton);
+  assert.equal(object.skeleton.bones.length,fighter.jointCount);
   const positions=object.geometry.getAttribute('position');
   const weights=object.geometry.getAttribute('skinWeight');
   const indices=object.geometry.getAttribute('skinIndex');
+  const normals=object.geometry.getAttribute('normal');
+  const colors=object.geometry.getAttribute('color');
   assert.equal(weights.count,positions.count);
   assert.equal(indices.count,positions.count);
+  assert.equal(normals.count,positions.count);
+  assert.equal(colors.count,positions.count);
+  assert.equal(object.geometry.getIndex().count,source.indices.length);
+  assert.equal(object.material.vertexColors,true);
   vertices+=positions.count;
   for(let i=0;i<positions.count;i++){
    const total=weights.getX(i)+weights.getY(i)+weights.getZ(i)+weights.getW(i);
@@ -24,7 +35,11 @@ test('articulated fighter creates a valid 22-joint skinned humanoid',()=>{
    for(let j=0;j<4;j++)assert.ok(indices.getComponent(i,j)<fighter.jointCount);
   }
  });
- assert.ok(skinned>=5&&vertices>1000);
+ // The old >=5 assertion encoded the removed disconnected-loft implementation.
+ // Require the intended welded body, not duplicate meshes to satisfy a count.
+ assert.equal(skinned,1,'One continuous skinned body, with separate inset eyes only');
+ assert.equal(vertices,source.positions.length/3);
+ assert.ok(vertices>1000&&vertices<45000,'Bounded nonempty body geometry');
 });
 
 test('two-bone gait is reachable and flexes at the knee',()=>{
