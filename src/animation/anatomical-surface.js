@@ -5,9 +5,9 @@ const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a));return t*t*(3-2*t);};
 const mix=(a,b,t)=>a+(b-a)*t;
 const smin=(a,b,k)=>{const h=Math.max(k-Math.abs(a-b),0)/k;return Math.min(a,b)-h*h*k*.25;};
 export const ANATOMY=Object.freeze({
- version:2,headHeight:.30,height:2.17,pelvisY:1.08,hipY:1.04,kneeY:.56,
+ version:3,headHeight:.30,height:2.17,pelvisY:1.08,hipY:1.04,kneeY:.56,
  ankleY:.10,upperLeg:.48,lowerLeg:.46,shoulderY:1.68,elbowY:1.31,
- wristY:1.015,headY:1.99,spacing:.021,
+ wristY:1.015,headY:1.99,spacing:.0195,
 });
 
 export function anatomicalRig(){
@@ -44,72 +44,96 @@ function capsule(x,y,z,a,b,ra,rb=ra){
  const t=clamp(((x-a[0])*dx+(y-a[1])*dy+(z-a[2])*dz)/(dx*dx+dy*dy+dz*dz));
  return Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t,z-a[2]-dz*t)-mix(ra,rb,t);
 }
+// Torso is a sequence of overlapping skeletal masses, not floating pectoral spheres.
+// Z is depth: negative Z faces the camera in the game's neutral forward convention.
 function torso(x,y,z){
  if(y<.79||y>1.99)return .2+Math.abs(y-1.4);
- let d=ell(x,y,z,0,1.075,.018,.225,.185,.147);
- d=smin(d,ell(x,y,z,0,1.285,-.006,.207,.235,.137),.065);
- d=smin(d,ell(x,y,z,0,1.505,.018,.258,.235,.163),.065);
- d=smin(d,ell(x,y,z,0,1.65,.008,.285,.103,.125),.060);
- d=smin(d,capsule(x,y,z,[0,1.70,.012],[0,1.89,.005],.080,.065),.055);
+ let d=ell(x,y,z,0,1.073,.018,.226,.185,.143); // bony pelvic bowl
+ d=smin(d,ell(x,y,z,0,1.283,-.003,.205,.237,.134),.065); // soft abdomen
+ d=smin(d,ell(x,y,z,0,1.515,.019,.253,.235,.146),.066); // tapered thoracic barrel
+ d=smin(d,ell(x,y,z,0,1.657,.007,.278,.108,.116),.057); // upper thorax
+ d=smin(d,capsule(x,y,z,[0,1.698,.008],[0,1.89,.007],.074,.061),.056);
  for(const s of [-1,1]){
-  // Pectorals and scapulae are blended into the rib cage, not separate balls.
-  d=smin(d,ell(x,y,z,s*.122,1.56,-.095,.132,.100,.062),.036);
-  d=smin(d,ell(x,y,z,s*.135,1.535,.12,.132,.140,.052),.035);
-  d=smin(d,capsule(x,y,z,[s*.235,1.655,.01],[s*.06,1.77,.01],.063,.061),.040);
-  d=smin(d,ell(x,y,z,s*.108,1.00,.075,.137,.150,.115),.050);
+  // Pectoral plane follows the thorax volume; no independent breast masses.
+  // Clavicles travel from sternum toward the acromion rather than forming balls.
+  d=smin(d,capsule(x,y,z,[s*.068,1.726,-.044],[s*.259,1.662,-.015],.021,.036),.026);
+  // Raised scapular plane and tapered latissimus contour on the back.
+  d=smin(d,ell(x,y,z,s*.136,1.556,.115,.112,.143,.038),.033);
+  d=smin(d,ell(x,y,z,s*.174,1.407,.095,.080,.151,.051),.034);
+  // External obliques, iliac crest, and gluteal mass form one continuous hip.
+  d=smin(d,ell(x,y,z,s*.139,1.179,.036,.091,.151,.088),.057);
+  d=smin(d,ell(x,y,z,s*.151,1.044,.066,.122,.146,.099),.051);
+  d=smin(d,ell(x,y,z,s*.132,.973,.095,.098,.098,.077),.045);
  }
+ // Small continuous forward chest plane, never isolated pectoral balloons.
+ const px=Math.abs(x);
+ const chest=Math.exp(-(((px-.133)/.118)**4)-(((y-1.55)/.12)**4));
+ d-=chest*(1-smooth(-.095,-.035,z))*.008;
  return d;
 }
+// A cranium and jaw share one continuous facial skin; smaller cheek planes,
+// less prominent nasal cartilage and shallower sockets preserve readable eyes.
 function head(x,y,z){
  if(y<1.79)return .2+1.79-y;
  let d=ell(x,y,z,0,2.012,.008,.116,.148,.120);
- d=smin(d,ell(x,y,z,0,1.925,-.015,.081,.063,.088),.024);
- d=smin(d,ell(x,y,z,0,1.884,-.032,.054,.026,.052),.018);
- d=smin(d,ell(x,y,z,0,1.985,-.103,.024,.047,.034),.013);
- d=smin(d,ell(x,y,z,0,1.949,-.135,.028,.019,.029),.010);
- for(const s of [-1,1]){
-  d=smin(d,ell(x,y,z,s*.112,1.986,.009,.024,.038,.023),.012);
-  d=smin(d,ell(x,y,z,s*.061,1.97,-.074,.040,.037,.033),.017);
-  // Recess the orbits; inset eyes are added by the presentation adapter.
-  const orbit=ell(x,y,z,s*.045,2.017,-.104,.031,.020,.027);
-  d=-smin(-d,orbit,.006);
+ d=smin(d,ell(x,y,z,0,1.925,-.015,.081,.063,.088),.028);
+ d=smin(d,ell(x,y,z,0,1.884,-.032,.054,.026,.052),.020);
+ d=smin(d,ell(x,y,z,0,1.985,-.103,.021,.044,.029),.012);
+ d=smin(d,ell(x,y,z,0,1.951,-.125,.021,.016,.017),.011);
+ for(const side of [-1,1]){
+  d=smin(d,ell(x,y,z,side*.111,1.986,.009,.020,.036,.020),.010);
+  // Malar regions blend into the head rather than an independent wedge.
+  d=smin(d,ell(x,y,z,side*.060,1.968,-.070,.039,.029,.022),.013);
+  // Small curved eye seats preserve the runtime eye mesh and the orbital rim.
+  const orbit=ell(x,y,z,side*.045,2.017,-.107,.029,.016,.020);
+  d=-smin(-d,orbit,.010);
  }
  return d;
 }
 function arm(x,y,z,s){
  if(y<.74||y>1.84)return .2+Math.abs(y-1.3);
  x*=s;
- let d=capsule(x,y,z,[.312,1.665,0],[.375,1.31,0],.084,.056);
- d=smin(d,ell(x,y,z,.322,1.655,0,.091,.111,.090),.034);
- d=smin(d,ell(x,y,z,.350,1.485,-.014,.068,.140,.066),.022);
- d=smin(d,capsule(x,y,z,[.375,1.31,0],[.410,1.015,-.008],.062,.037),.024);
- d=smin(d,ell(x,y,z,.385,1.205,.004,.059,.109,.057),.018);
- d=smin(d,ell(x,y,z,.424,.946,-.012,.053,.084,.030),.023);
- // Fingers have different lengths and attach to the palm; no bead-like knuckles.
- const lengths=[.073,.095,.103,.085];
+ // The sloping deltoid follows a downward humeral axis, not a round cap.
+ let d=capsule(x,y,z,[.315,1.661,0],[.375,1.31,0],.057,.050);
+ d=smin(d,ell(x,y,z,.329,1.626,.003,.068,.092,.063),.025);
+ d=smin(d,ell(x,y,z,.355,1.474,-.013,.056,.123,.050),.016); // anterior biceps
+ d=smin(d,ell(x,y,z,.363,1.470,.030,.051,.114,.047),.015); // posterior triceps
+ d=smin(d,capsule(x,y,z,[.375,1.31,0],[.410,1.015,-.008],.054,.035),.021);
+ d=smin(d,ell(x,y,z,.383,1.205,.019,.045,.108,.052),.013); // flexors
+ d=smin(d,ell(x,y,z,.408,1.156,-.011,.038,.092,.040),.012); // extensors
+ // The radius taper carries the elbow; no separate knuckle-like cuff.
+ // Palm connects directly to wrist; thumb starts medially and rotates forward.
+ d=smin(d,ell(x,y,z,.423,.947,-.009,.050,.077,.025),.018);
+ d=smin(d,ell(x,y,z,.408,.989,-.011,.033,.038,.031),.017);
+ // Four fingers with graded roots, lengths and narrow tips.  No new bones.
+ const lengths=[.078,.106,.100,.082];
  for(let i=0;i<4;i++){
-  const fx=.389+i*.024;
-  d=smin(d,capsule(x,y,z,[fx,.901,-.014],[fx+.006,.901-lengths[i],-.021],.013,.009),.009);
+  const fx=.390+i*.023;
+  d=smin(d,capsule(x,y,z,[fx,.899,-.013],[fx+(i-1.5)*.003,.899-lengths[i],-.019],.0115,.0078),.006);
  }
- d=smin(d,capsule(x,y,z,[.388,.975,-.005],[.363,.919,-.022],.020,.013),.014);
+ // Thumb-index web and flexed thumb, still one continuous skin.
+ d=smin(d,ell(x,y,z,.388,.934,-.013,.021,.027,.017),.010);
+ d=smin(d,capsule(x,y,z,[.390,.960,-.012],[.362,.914,-.028],.014,.010),.012);
  return d;
 }
 function leg(x,y,z,s){
  if(y>1.24)return .2+y-1.24;
  x*=s;
- let d=capsule(x,y,z,[.145,1.03,0],[.145,.56,0],.117,.067);
- d=smin(d,ell(x,y,z,.155,.855,-.005,.117,.201,.114),.030);
- // A slim knee and asymmetric calf contour follow the load-bearing axis.
- d=smin(d,ell(x,y,z,.145,.57,-.019,.066,.062,.068),.017);
- d=smin(d,capsule(x,y,z,[.145,.56,0],[.145,.10,0],.064,.038),.023);
- d=smin(d,ell(x,y,z,.151,.386,.023,.079,.137,.083),.024);
- d=smin(d,ell(x,y,z,.145,.073,-.072,.070,.064,.166),.025);
- d=smin(d,ell(x,y,z,.145,.092,.026,.048,.085,.059),.020);
- d=smin(d,ell(x,y,z,.145,.117,-.057,.048,.060,.095),.019);
- // Toes merge into the forefoot; medial big toe is larger than the outer toes.
+ let d=capsule(x,y,z,[.145,1.03,0],[.145,.56,0],.107,.063);
+ d=smin(d,ell(x,y,z,.155,.837,-.025,.115,.194,.103),.031); // quadriceps
+ d=smin(d,ell(x,y,z,.153,.865,.067,.101,.163,.076),.031); // hamstrings
+ d=smin(d,ell(x,y,z,.154,.704,.016,.081,.130,.072),.026); // inner adductor
+ d=smin(d,ell(x,y,z,.145,.573,-.031,.060,.052,.053),.015); // patella
+ d=smin(d,capsule(x,y,z,[.145,.56,0],[.145,.10,0],.058,.036),.019);
+ d=smin(d,ell(x,y,z,.151,.396,.044,.072,.133,.070),.021); // back calf
+ d=smin(d,ell(x,y,z,.150,.289,.010,.054,.110,.046),.019); // straight shin
+ d=smin(d,capsule(x,y,z,[.145,.241,.052],[.145,.102,.044],.032,.025),.012); // Achilles
+ d=smin(d,ell(x,y,z,.145,.072,-.072,.060,.057,.130),.023); // heel to instep
+ d=smin(d,ell(x,y,z,.145,.089,.035,.046,.069,.052),.016); // heel
+ d=smin(d,ell(x,y,z,.145,.110,-.079,.048,.040,.086),.016); // metatarsal roof
  for(let i=0;i<5;i++){
-  const tx=.103+i*.021,r=.019-i*.0015;
-  d=smin(d,ell(x,y,z,tx,.039,-.216+i*.005,r,.024,.044-i*.002),.008);
+  const tx=.101+i*.020,r=.019-i*.0015;
+  d=smin(d,ell(x,y,z,tx,.034,-.202+i*.007,r,.027,.039-i*.002),.007);
  }
  return d;
 }
@@ -123,18 +147,18 @@ export function anatomicalField(x,y,z){
 const srgb=c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4;
 function surfaceColor(x,y,z){
  let c=[.72,.50,.38];
- const lower=.920+.28*Math.abs(x);
- const shorts=smooth(lower-.012,lower+.012,y)*(1-smooth(1.098,1.112,y))*(1-smooth(.29,.31,Math.abs(x)));
+ const lower=.917+.255*Math.abs(x);
+ const shorts=smooth(lower-.016,lower+.014,y)*(1-smooth(1.096,1.112,y))*(1-smooth(.29,.31,Math.abs(x)));
  const fabric=y>1.079?[.20,.22,.235]:[.135,.155,.175];
  c=c.map((v,i)=>mix(v,fabric[i],shorts));
  // A smooth scalp-following hairline, not a detached hair cap.
- const line=z<0?2.105+.012*Math.cos(x*24):2.042;
- const hair=smooth(line-.005,line+.006,y);
+ const line=z<0?2.096+.008*Math.cos(x*16):2.041;
+ const hair=smooth(line-.010,line+.009,y);
  c=c.map((v,i)=>mix(v,[.18,.125,.088][i],hair));
  const browY=2.045+.006*Math.cos(x*26);
  const brow=(1-smooth(.003,.010,Math.abs(y-browY)))*smooth(.018,.026,Math.abs(x))*(1-smooth(.068,.077,Math.abs(x)))*(1-smooth(-.096,-.089,z));
  c=c.map((v,i)=>mix(v,[.23,.15,.105][i],brow));
- const lip=(1-smooth(.004,.010,Math.abs(y-1.907)))*(1-smooth(.025,.036,Math.abs(x)))*(1-smooth(-.095,-.087,z));
+ const lip=(1-smooth(.004,.008,Math.abs(y-1.912)))*(1-smooth(.025,.036,Math.abs(x)))*(1-smooth(-.095,-.087,z));
  c=c.map((v,i)=>mix(v,[.49,.275,.225][i],lip));
  return c.map(srgb);
 }

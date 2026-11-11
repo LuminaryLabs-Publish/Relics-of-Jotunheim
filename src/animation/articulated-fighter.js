@@ -31,8 +31,8 @@ export function createArticulatedFighter({solveIK}={}){
  const iris=new THREE.MeshStandardMaterial({color:0x48392c,roughness:.6});
  for(const s of [-1,1]){
   for(const [position,scale,mat] of [
-   [[s*.045,2.017,-.099],[.022,.010,.017],sclera],
-   [[s*.045,2.017,-.115],[.008,.008,.004],iris],
+   [[s*.045,2.017,-.099],[.020,.010,.014],sclera],
+   [[s*.045,2.017,-.113],[.008,.008,.0035],iris],
   ]){
    const eye=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),mat);
    eye.position.set(position[0],position[1]-ANATOMY.headY,position[2]);

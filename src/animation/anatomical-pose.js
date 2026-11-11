@@ -49,7 +49,11 @@ export function createAnatomicalPose({solveIK}={}){
    thigh.rotation[0]+=(leg.hip-thigh.rotation[0])*alpha;
    shin.rotation[0]+=(leg.knee-shin.rotation[0])*alpha;
    foot.rotation[0]+=(leg.ankle-foot.rotation[0])*alpha;
-   pose[side+'_toe'].rotation[0]+=(0-pose[side+'_toe'].rotation[0])*alpha;
+   // Toe-off is presentation-only. Keep a planted foot flat, then roll the
+   // trailing forefoot as it lifts; simulation contact stays in NexusEngine.
+   const p=phase+i*PI,trail=Math.max(0,-Math.cos(p)),lift=Math.max(0,Math.sin(p));
+   const toeOff=locomoting?trail*Math.min(1,lift*2)*(athletic?.21:.15):0;
+   pose[side+'_toe'].rotation[0]+=(toeOff-pose[side+'_toe'].rotation[0])*alpha;
    const swing=locomoting?Math.sin(phase+i*PI):0;
    const upper=pose[side+'_upper_arm'],fore=pose[side+'_forearm'];
    const arm=-swing*(athletic?.54:.32),elbow=.10+Math.max(0,swing)*.20;
